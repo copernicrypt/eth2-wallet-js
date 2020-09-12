@@ -1,0 +1,46 @@
+{
+  "name": "eth2-wallet-js",
+  "version": "0.1.0",
+  "description": "NodeJS implementation of an Ethereum 2 Wallet keystore.",
+  "main": "src/keystore.js",
+  "license": "MIT",
+  "scripts": {
+    "cli": "babel-node src/cli.js",
+    "test": "jest",
+    "test:cov": "jest --coverage"
+  },
+  "dependencies": {
+    "@babel/node": "^7.10.5",
+    "@chainsafe/lodestar-config": "^0.11.0",
+    "@chainsafe/lodestar-types": "^0.11.0",
+    "@chainsafe/ssz": "^0.6.13",
+    "babel-node": "^0.0.1-security",
+    "bigint-buffer": "^1.1.5",
+    "bls-eth-wasm": "^0.1.8",
+    "commander": "^6.1.0",
+    "ethers": "^5.0.12",
+    "lodash": "^4.17.20",
+    "p-queue": "^6.6.1",
+    "uuid": "^8.3.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.11.6",
+    "@babel/plugin-transform-runtime": "^7.11.5",
+    "@babel/preset-env": "^7.11.5",
+    "babel-jest": "^26.3.0",
+    "jest": "^26.4.2"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "moduleFileExtensions": [
+      "js",
+      "json"
+    ],
+    "rootDir": "",
+    "roots": [
+      "src"
+    ],
+    "testRegex": ".spec.js$",
+    "coverageDirectory": "../coverage"
+  }
+}
