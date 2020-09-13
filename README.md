@@ -42,8 +42,9 @@ yarn test
 import { Keystore } from 'eth2-wallet-js';
 
 let ks = new Keystore();
-let wallet = Keystore.walletCreate();
-let key = Keystore.keyCreate(wallet, 'mypassword');
+await ks.init();
+let wallet = await Keystore.walletCreate();
+let key = await Keystore.keyCreate(wallet, 'mypassword');
 ```
 
 ## Instance Options
@@ -57,6 +58,7 @@ let opts = {
 }
 
 let ks = new Keystore(opts);
+await ks.init();
 ```
 
 ## CLI Usage
@@ -68,26 +70,6 @@ yarn run cli <command> [...args]
 
 -   \<parameters\> are required.
 -   \[options\] are optional.
-
-### depositData \<wallet\> \<password\> \<key\> \[withdrawalwallet=\<wallet\>\] \[withdrawalkey=\<key\>\] \[withdrawalpublickey=null\] \[amount=32000000000\] \[raw=false\]
-Generates deposit data for submitting to the deposit contract.  
-
-```shell
-$ yarn run cli depositData --wallet=primary --password=testpassword --key=testaccountId --withdrawalpublickey=b6de3f6dd56a863f69bca81af4dc9877d04a81df361bbe555d6944b9d84fce18fdfb939d9ef3c312ead638b759b207c9
-{
-  pubkey: 'b88f5ff7e293d26d24a2655a8c72c8b92d495393548f7b86a31c2fe0923fd1ba292f31c11bb740e8acd7f599fb2ae06d',
-  withdrawal_credentials: '00756e0bd4defe8a84f4303f6004e7f1b6978ddbe7fc7d22e2b0bd5f1c895e4c',
-  signature: '92543970b5d2ab17666c9db957252d3a46ebf47782dfd8c53fc74d3cdce99883f35468d07d48094cfb8c986569e54f4619cdc64242e3c478a3899e4264a8d6d6a872311523c60f39b788d0398da77322dd2b8922e6f7b7ce4a8696b625bb59a3',
-  amount: '32000000000',
-  deposit_data_root: 'ea0c696c122426c32e5d6abe3caa4334cdc22fb08caa2601a6737e842fa73554'
-}
-
-```
-
-```shell
-$ yarn run cli depositData --wallet=primary --password=testpassword --key=testaccountId --withdrawalpublickey=b6de3f6dd56a863f69bca81af4dc9877d04a81df361bbe555d6944b9d84fce18fdfb939d9ef3c312ead638b759b207c9 --raw
-0x22895118000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000120ea0c696c122426c32e5d6abe3caa4334cdc22fb08caa2601a6737e842fa735540000000000000000000000000000000000000000000000000000000000000030b88f5ff7e293d26d24a2655a8c72c8b92d495393548f7b86a31c2fe0923fd1ba292f31c11bb740e8acd7f599fb2ae06d00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000756e0bd4defe8a84f4303f6004e7f1b6978ddbe7fc7d22e2b0bd5f1c895e4c000000000000000000000000000000000000000000000000000000000000006092543970b5d2ab17666c9db957252d3a46ebf47782dfd8c53fc74d3cdce99883f35468d07d48094cfb8c986569e54f4619cdc64242e3c478a3899e4264a8d6d6a872311523c60f39b788d0398da77322dd2b8922e6f7b7ce4a8696b625bb59a3
-```
 
 ### keyCreate \<wallet\> \<password\> \[key\]
 Imports a private key into a wallet.
@@ -187,6 +169,26 @@ $ yarn run cli walletListKeys --wallet=test
   'test',
   'test2'
 ]
+```
+
+### depositData \<wallet\> \<password\> \<key\> \[withdrawalwallet=\<wallet\>\] \[withdrawalkey=\<key\>\] \[withdrawalpublickey=null\] \[amount=32000000000\] \[raw=false\]
+Generates deposit data for submitting to the deposit contract.  
+
+```shell
+$ yarn run cli depositData --wallet=primary --password=testpassword --key=testaccountId --withdrawalpublickey=b6de3f6dd56a863f69bca81af4dc9877d04a81df361bbe555d6944b9d84fce18fdfb939d9ef3c312ead638b759b207c9
+{
+  pubkey: 'b88f5ff7e293d26d24a2655a8c72c8b92d495393548f7b86a31c2fe0923fd1ba292f31c11bb740e8acd7f599fb2ae06d',
+  withdrawal_credentials: '00756e0bd4defe8a84f4303f6004e7f1b6978ddbe7fc7d22e2b0bd5f1c895e4c',
+  signature: '92543970b5d2ab17666c9db957252d3a46ebf47782dfd8c53fc74d3cdce99883f35468d07d48094cfb8c986569e54f4619cdc64242e3c478a3899e4264a8d6d6a872311523c60f39b788d0398da77322dd2b8922e6f7b7ce4a8696b625bb59a3',
+  amount: '32000000000',
+  deposit_data_root: 'ea0c696c122426c32e5d6abe3caa4334cdc22fb08caa2601a6737e842fa73554'
+}
+
+```
+
+```shell
+$ yarn run cli depositData --wallet=primary --password=testpassword --key=testaccountId --withdrawalpublickey=b6de3f6dd56a863f69bca81af4dc9877d04a81df361bbe555d6944b9d84fce18fdfb939d9ef3c312ead638b759b207c9 --raw
+0x22895118000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000000000120ea0c696c122426c32e5d6abe3caa4334cdc22fb08caa2601a6737e842fa735540000000000000000000000000000000000000000000000000000000000000030b88f5ff7e293d26d24a2655a8c72c8b92d495393548f7b86a31c2fe0923fd1ba292f31c11bb740e8acd7f599fb2ae06d00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000756e0bd4defe8a84f4303f6004e7f1b6978ddbe7fc7d22e2b0bd5f1c895e4c000000000000000000000000000000000000000000000000000000000000006092543970b5d2ab17666c9db957252d3a46ebf47782dfd8c53fc74d3cdce99883f35468d07d48094cfb8c986569e54f4619cdc64242e3c478a3899e4264a8d6d6a872311523c60f39b788d0398da77322dd2b8922e6f7b7ce4a8696b625bb59a3
 ```
 
 ## Functions
