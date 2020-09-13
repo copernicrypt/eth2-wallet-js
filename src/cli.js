@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import { Command } from 'commander';
-import Keystore from './keystore';
+import { Keystore } from './keystore';
 
 const KEYSTORE = new Keystore();
 

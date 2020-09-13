@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
-import Keystore from './keystore';
+import { Keystore } from './keystore';
 import * as types from './types';
 import walletMock from '../__mocks__/wallet.json';
 import attestMock from '../__mocks__/attestations.json';

@@ -18,7 +18,7 @@ const FORK_VERSION = Buffer.from('00000001','hex');
 const BLS_WITHDRAWAL_PREFIX = Buffer.from('00', 'hex');
 const DEPOSIT_AMOUNT = BigInt(32000000000);
 
-export default class Keystore {
+class Keystore {
   constructor(opts={}) {
     let defaults = {
       wallet_path: `${HOMEDIR}/.eth2-wallet-js/wallet`,
@@ -384,4 +384,8 @@ export default class Keystore {
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
   }
+}
+
+module.exports = {
+  Keystore
 }
