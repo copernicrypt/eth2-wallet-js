@@ -1,4 +1,6 @@
 # eth2-wallet-js
+![Unit Tests](https://github.com/copernicrypt/eth2-wallet-js/workflows/Tests/badge.svg)
+
 NodeJS implementation of an Ethereum 2 Wallet keystore.
 
 **\*\*UNDER ACTIVE DEVELOPMENT, NOT FOR PRODUCTION USE\*\***
