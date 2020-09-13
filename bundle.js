@@ -1,15 +1,79 @@
-import _ from 'lodash';
-import crypto from 'crypto';
-import fs from 'fs';
-import bls from 'bls-eth-wasm';
-import { ethers } from "ethers";
-import  { v4 as uuidv4 } from 'uuid';
-import PQueue from 'p-queue';
-import * as types from './types';
-import * as utils from './utils';
+'use strict';
+
+var _ = require('lodash');
+var crypto = require('crypto');
+var fs = require('fs');
+var bls = require('bls-eth-wasm');
+var ethers = require('ethers');
+var uuid = require('uuid');
+var PQueue = require('p-queue');
+var bigintBuffer = require('bigint-buffer');
+var mainnet = require('@chainsafe/lodestar-types/lib/ssz/presets/mainnet');
+
+function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
+
+var ___default = /*#__PURE__*/_interopDefaultLegacy(_);
+var crypto__default = /*#__PURE__*/_interopDefaultLegacy(crypto);
+var fs__default = /*#__PURE__*/_interopDefaultLegacy(fs);
+var bls__default = /*#__PURE__*/_interopDefaultLegacy(bls);
+var PQueue__default = /*#__PURE__*/_interopDefaultLegacy(PQueue);
+
+const PUBLIC_KEY = new RegExp("^(0x)?[0-9a-f]{96}$");
+const PRIVATE_KEY = new RegExp("^(0x)?[0-9a-f]{64}$");
+
+/**
+ * @module constants
+ */
+const ZERO_HASH = Buffer.alloc(32, 0);
+const EMPTY_SIGNATURE = Buffer.alloc(96, 0);
+
+// Domain Types
+const DomainType = {
+  BEACON_PROPOSER: 0,
+  BEACON_ATTESTER: 1,
+  RANDAO: 2,
+  DEPOSIT: 3,
+  VOLUNTARY_EXIT: 4,
+  SELECTION_PROOF: 5,
+  AGGREGATE_AND_PROOF: 6,
+};
+
+function getSigningRoot(depositData, forkVersion) {
+  const domainWrappedObject = {
+      objectRoot: mainnet.types.DepositMessage.hashTreeRoot(depositData),
+      domain: getDomain(forkVersion),
+  };
+  return mainnet.types.SigningData.hashTreeRoot(domainWrappedObject);
+}
+
+function getDomain(forkVersion, domainType=DomainType.DEPOSIT, genesisValidatorRoot=ZERO_HASH) {
+  const forkDataRoot = getForkDataRoot(forkVersion, genesisValidatorRoot);
+  return Buffer.concat([intToBytes(BigInt(domainType), 4), Uint8Array.from(forkDataRoot).slice(0, 28)]);
+}
+
+function getDepositDataRoot(depositData) {
+  return mainnet.types.DepositData.hashTreeRoot(depositData);
+}
+
+function getForkDataRoot(currentVersion, genesisValidatorsRoot) {
+  const forkData = {
+    currentVersion,
+    genesisValidatorsRoot,
+  };
+  return mainnet.types.ForkData.hashTreeRoot(forkData);
+}
+
+function intToBytes(value, length, endian='le') {
+  if (endian === "le") {
+    return bigintBuffer.toBufferLE(value, length);
+  } else if (endian === "be") {
+    return bigintBuffer.toBufferBE(value, length);
+  }
+  throw new Error("endian must be either 'le' or 'be'");
+}
 
 const DEPOSIT_CONTRACT = require('./depositContract.json');
-const init = bls.init(bls.BLS12_381);
+const init = bls__default['default'].init(bls__default['default'].BLS12_381);
 const HOMEDIR = require('os').homedir();
 const VERSION = 1;
 const FORK_VERSION = Buffer.from('00000001','hex');
@@ -22,10 +86,10 @@ class Keystore {
       wallet_path: `${HOMEDIR}/.eth2-wallet-js/wallet`,
       algorithm: 'aes-256-cbc',
       fork_version: FORK_VERSION
-    }
+    };
     opts = { ...defaults, ...opts };
     this.version = VERSION;
-    this.queue = new PQueue({ concurrency: 1 });
+    this.queue = new PQueue__default['default']({ concurrency: 1 });
     this.algorithm = opts.algorithm;
     this.walletPath = opts.wallet_path;
     this.forkVersion = opts.fork_version;
@@ -47,25 +111,25 @@ class Keystore {
       let validatorKey = await this.keySearch(keyId, walletId);
       let validatorPubKey = validatorKey.public_key;
       let withdrawPubKey;
-      if(types.PUBLIC_KEY.test(opts.withdraw_public_key)) withdrawPubKey = opts.withdraw_public_key;
+      if(PUBLIC_KEY.test(opts.withdraw_public_key)) withdrawPubKey = opts.withdraw_public_key;
       else {
         let withdrawKey = await this.keySearch(opts.withdraw_key_id, opts.withdraw_key_wallet);
         withdrawPubKey = withdrawKey.public_key;
       }
 
       //deposit data with empty signature to sign
-      const withdrawalPubKeyHash = crypto.createHash('sha256').update(Buffer.from(withdrawPubKey, 'hex')).digest();
+      const withdrawalPubKeyHash = crypto__default['default'].createHash('sha256').update(Buffer.from(withdrawPubKey, 'hex')).digest();
       const depositData = {
           pubkey: Buffer.from(validatorPubKey, 'hex'),
           withdrawalCredentials: Buffer.concat([ BLS_WITHDRAWAL_PREFIX, withdrawalPubKeyHash.slice(1) ]),
           amount: opts.amount,
           signature: Buffer.alloc(96),
       };
-      let signingRoot = utils.getSigningRoot(depositData, this.forkVersion);
+      let signingRoot = getSigningRoot(depositData, this.forkVersion);
       depositData.signature = await this.sign(signingRoot.toString('hex'), walletId, validatorPubKey, password);
-      let depositDataRoot = utils.getDepositDataRoot(depositData);
+      let depositDataRoot = getDepositDataRoot(depositData);
       if(opts.raw == true) {
-        let contract = new ethers.utils.Interface(DEPOSIT_CONTRACT.abi);
+        let contract = new ethers.ethers.utils.Interface(DEPOSIT_CONTRACT.abi);
         let raw = contract.encodeFunctionData("deposit", [
           depositData.pubkey,
           depositData.withdrawalCredentials,
@@ -85,7 +149,7 @@ class Keystore {
     catch(error) { throw error; }
   }
 
-  async keyCreate(walletId, password, accountId=uuidv4()) {
+  async keyCreate(walletId, password, accountId=uuid.v4()) {
     return this.queue.add(() => this.keyCreateAsync(walletId, password, accountId));
   }
 
@@ -97,12 +161,12 @@ class Keystore {
    * @return {Object} An object containing the wallet_id, key_id and public_key.
    * @throws On failure
    */
-  async keyCreateAsync(walletId, password, keyId=uuidv4()) {
+  async keyCreateAsync(walletId, password, keyId=uuid.v4()) {
     try {
-      const sec = new bls.SecretKey()
+      const sec = new bls__default['default'].SecretKey();
       sec.setByCSPRNG();
       const pub = sec.getPublicKey();
-      let privateKeyHex = bls.toHexStr(sec.serialize());
+      let privateKeyHex = bls__default['default'].toHexStr(sec.serialize());
       return await this.keyImportAsync(walletId, privateKeyHex, password, keyId);
     }
     catch(error) { throw error; }
@@ -120,7 +184,7 @@ class Keystore {
     try {
       let key = await this.keyPrivate(walletId, keyId, password);
       let indexFile = await this.walletIndexKey(walletId, keyId, null, true);
-      let keyFile = await fs.promises.unlink(`${this.walletPath}/${walletId}/${keyId}`);
+      let keyFile = await fs__default['default'].promises.unlink(`${this.walletPath}/${walletId}/${keyId}`);
       return true;
     }
     catch(error) { throw error; }
@@ -136,7 +200,7 @@ class Keystore {
   async keyExists(search, walletId) {
     try {
       let indexSearch = await this.keySearch(search, walletId);
-      let fileSearch = await fs.promises.access(`${this.walletPath}/${walletId}/${indexSearch.key_id}`);
+      let fileSearch = await fs__default['default'].promises.access(`${this.walletPath}/${walletId}/${indexSearch.key_id}`);
       return true;
     }
     catch(error) {
@@ -145,7 +209,7 @@ class Keystore {
     }
   }
 
-  async keyImport(walletId, privateKey, password, keyId=uuidv4()) {
+  async keyImport(walletId, privateKey, password, keyId=uuid.v4()) {
     return this.queue.add(() => this.keyImportAsync(walletId, privateKey, password, keyId));
   }
 
@@ -158,19 +222,19 @@ class Keystore {
    * @return {Object}  An object containing the walletId <string> key ID <UUID> and public key <48-byte HEX>
    * @throws On failure
    */
-  async keyImportAsync(walletId, privateKey, password, keyId=uuidv4()) {
+  async keyImportAsync(walletId, privateKey, password, keyId=uuid.v4()) {
     try {
       if(await this.keyExists(keyId, walletId))
         throw new Error('Key ID already exists.');
       if(await this.keyExists(privateKey, walletId))
           throw new Error('Private Key already exists.');
 
-      const sec = bls.deserializeHexStrToSecretKey(privateKey);
+      const sec = bls__default['default'].deserializeHexStrToSecretKey(privateKey);
       const pub = sec.getPublicKey();
-      const pubKeyHex = bls.toHexStr(pub.serialize());
+      const pubKeyHex = bls__default['default'].toHexStr(pub.serialize());
       let saveData = await this.encrypt(privateKey, password);
 
-      let walletFile = fs.promises.writeFile( `${this.walletPath}/${walletId}/${keyId}`, JSON.stringify(saveData) );
+      let walletFile = fs__default['default'].promises.writeFile( `${this.walletPath}/${walletId}/${keyId}`, JSON.stringify(saveData) );
       let indexFile = this.walletIndexKey(walletId, keyId, pubKeyHex);
       await Promise.all([walletFile, indexFile]);
 
@@ -208,21 +272,21 @@ class Keystore {
    */
   async keySearch(search, walletId) {
     try {
-      let buffer = await fs.promises.readFile(`${this.walletPath}/${walletId}/index`);
+      let buffer = await fs__default['default'].promises.readFile(`${this.walletPath}/${walletId}/index`);
       let index = JSON.parse(buffer.toString());
       let searchField;
       // Convert private key to public key for search.
-      if(types.PRIVATE_KEY.test(search)) {
-        const sec = bls.deserializeHexStrToSecretKey(search);
+      if(PRIVATE_KEY.test(search)) {
+        const sec = bls__default['default'].deserializeHexStrToSecretKey(search);
         const pub = sec.getPublicKey();
-        const pubKeyHex = bls.toHexStr(pub.serialize());
+        const pubKeyHex = bls__default['default'].toHexStr(pub.serialize());
         searchField = 'public_key';
         search = pubKeyHex;
       }
-      else searchField = (types.PUBLIC_KEY.test(search)) ? 'public_key' : 'key_id';
-      let keyObj = _.find(index.key_list, { [searchField]: search });
+      else searchField = (PUBLIC_KEY.test(search)) ? 'public_key' : 'key_id';
+      let keyObj = ___default['default'].find(index.key_list, { [searchField]: search });
       //console.log(`${keyObj} -- Field: ${searchField} -- Search: ${search} -- Wallet: ${walletId}`);
-      if(_.isNil(keyObj)) throw new Error('Key not found.')
+      if(___default['default'].isNil(keyObj)) throw new Error('Key not found.')
       return { key_id: keyObj.key_id, public_key: keyObj.public_key, wallet_id: walletId }
     }
     catch (error) { throw error; }
@@ -240,11 +304,11 @@ class Keystore {
     try {
       let keyObject = await this.keySearch(search, walletId);
       let secHex = await this.keyPrivate(walletId, keyObject.key_id, password);
-      const sec = bls.deserializeHexStrToSecretKey(secHex);
+      const sec = bls__default['default'].deserializeHexStrToSecretKey(secHex);
       const pub = sec.getPublicKey();
-      const msg = bls.fromHexStr(message);
+      const msg = bls__default['default'].fromHexStr(message);
       const sig = sec.sign(msg);
-      let serialized = sig.serialize()
+      let serialized = sig.serialize();
       return serialized;
     }
     catch(error) { throw error; }
@@ -261,14 +325,14 @@ class Keystore {
    * @throws On failure
    */
   async walletCreate(opts={}) {
-    let defaults = { wallet_id: uuidv4(), type: 1 };
+    let defaults = { wallet_id: uuid.v4(), type: 1 };
     opts = { ...defaults, ...opts };
     let walletExists = await this.walletExists(opts.wallet_id);
     if(walletExists) throw new Error('Wallet already exists');
     try {
-      await fs.promises.mkdir(`${this.walletPath}/${opts.wallet_id}`, { recursive: true });
+      await fs__default['default'].promises.mkdir(`${this.walletPath}/${opts.wallet_id}`, { recursive: true });
       const indexData = { type: opts.type, key_list: [] };
-      await fs.promises.writeFile(`${this.walletPath}/${opts.wallet_id}/index`, JSON.stringify(indexData));
+      await fs__default['default'].promises.writeFile(`${this.walletPath}/${opts.wallet_id}/index`, JSON.stringify(indexData));
       return opts.wallet_id;
     }
     catch(error) { throw error; }
@@ -284,7 +348,7 @@ class Keystore {
     try {
       let walletExists = await this.walletExists(walletId);
       if(!walletExists) throw new Error('Wallet does not exist');
-      await fs.promises.rmdir(`${this.walletPath}/${walletId}`, { recursive: true });
+      await fs__default['default'].promises.rmdir(`${this.walletPath}/${walletId}`, { recursive: true });
       return true;
     }
     catch(error) { throw error; }
@@ -292,7 +356,7 @@ class Keystore {
 
   async walletExists(walletId) {
     try {
-      await fs.promises.access(`${this.walletPath}/${walletId}`);
+      await fs__default['default'].promises.access(`${this.walletPath}/${walletId}`);
       return true;
     }
     catch(error) {
@@ -308,7 +372,7 @@ class Keystore {
   async walletList() {
     try {
       // get all the files and directories
-      let list = await fs.promises.readdir(`${this.walletPath}`, { withFileTypes: true });
+      let list = await fs__default['default'].promises.readdir(`${this.walletPath}`, { withFileTypes: true });
       // filter out files and hidden folders
       let dirList = list.filter(dirent => dirent.isDirectory())
         .map(dirent => dirent.name)
@@ -325,7 +389,7 @@ class Keystore {
    */
   async walletListKeys(walletId) {
     try {
-      let buffer = await fs.promises.readFile(`${this.walletPath}/${walletId}/index`);
+      let buffer = await fs__default['default'].promises.readFile(`${this.walletPath}/${walletId}/index`);
       let indexData = JSON.parse(buffer.toString());
       return indexData.key_list;
     }
@@ -343,41 +407,41 @@ class Keystore {
    */
   async walletIndexKey(walletId, keyId, publicKey=null, remove=false) {
     try {
-      let buffer = await fs.promises.readFile(`${this.walletPath}/${walletId}/index`);
+      let buffer = await fs__default['default'].promises.readFile(`${this.walletPath}/${walletId}/index`);
       let indexData = JSON.parse(buffer.toString());
       // check for existing keys
       let indexSearch = (publicKey === null) ? keyId : publicKey;
       let hasKey = await this.keyExists(indexSearch, walletId);
 
-      if(remove == true && hasKey) _.remove(indexData.key_list, function(o) { o.key_id == keyId });
+      if(remove == true && hasKey) ___default['default'].remove(indexData.key_list, function(o) { o.key_id == keyId; });
       else if( remove == false && !hasKey) indexData.key_list.push({ key_id: keyId, public_key: publicKey });
       else if(remove == true && !hasKey) throw new Error(`Key not found: ${keyId}.`)
       else if(remove == false && hasKey) throw new Error(`Duplicate key found: ${publicKey}.`)
 
-      await fs.promises.writeFile(`${this.walletPath}/${walletId}/index`, JSON.stringify(indexData));
+      await fs__default['default'].promises.writeFile(`${this.walletPath}/${walletId}/index`, JSON.stringify(indexData));
       return true;
     }
     catch(error) { throw error; }
   }
 
   async encrypt(text, password) {
-    const iv = crypto.randomBytes(16);
-    const key = crypto.createHash('sha256').update(password).digest();
+    const iv = crypto__default['default'].randomBytes(16);
+    const key = crypto__default['default'].createHash('sha256').update(password).digest();
 
-    let cipher = crypto.createCipheriv(this.algorithm, key, iv);
+    let cipher = crypto__default['default'].createCipheriv(this.algorithm, key, iv);
     let encrypted = cipher.update(text);
     encrypted = Buffer.concat([encrypted, cipher.final()]);
     return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex') };
   }
 
   async decrypt(walletId, keyId, password) {
-    let buffer = await fs.promises.readFile(`${this.walletPath}/${walletId}/${keyId}`);
+    let buffer = await fs__default['default'].promises.readFile(`${this.walletPath}/${walletId}/${keyId}`);
     let text = JSON.parse(buffer.toString());
     let iv = Buffer.from(text.iv, 'hex');
-    const key = crypto.createHash('sha256').update(password).digest();
+    const key = crypto__default['default'].createHash('sha256').update(password).digest();
 
     let encryptedText = Buffer.from(text.data, 'hex');
-    let decipher = crypto.createDecipheriv(this.algorithm, key, iv);
+    let decipher = crypto__default['default'].createDecipheriv(this.algorithm, key, iv);
     let decrypted = decipher.update(encryptedText);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
@@ -386,4 +450,4 @@ class Keystore {
 
 module.exports = {
   Keystore
-}
+};

@@ -2,14 +2,18 @@
   "name": "eth2-wallet-js",
   "version": "0.1.0",
   "description": "NodeJS implementation of an Ethereum 2 Wallet keystore.",
-  "main": "src/keystore.js",
+  "main": "bundle.js",
   "license": "MIT",
   "repository": "https://github.com/copernicrypt/eth2-wallet-js",
   "scripts": {
+    "build": "rollup -c",
     "cli": "babel-node src/cli.js",
     "jsdoc": "jsdoc2md src/keystore.js > api.md",
     "test": "jest",
     "test:cov": "jest --coverage"
+  },
+  "engines": {
+    "node": ">=12.0.0"
   },
   "dependencies": {
     "@babel/node": "^7.10.5",
@@ -31,7 +35,8 @@
     "@babel/preset-env": "^7.11.5",
     "babel-jest": "^26.3.0",
     "jest": "^26.4.2",
-    "jsdoc-to-markdown": "^6.0.1"
+    "jsdoc-to-markdown": "^6.0.1",
+    "rollup": "^2.26.11"
   },
   "jest": {
     "testEnvironment": "node",

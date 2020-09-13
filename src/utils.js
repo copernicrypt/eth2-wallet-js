@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { toBufferLE, toBigIntLE, toBufferBE, toBigIntBE } from "bigint-buffer";
+import { toBufferLE, toBufferBE } from "bigint-buffer";
 import { types as SSZ_TYPES} from "@chainsafe/lodestar-types/lib/ssz/presets/mainnet";
 import * as CONSTANTS from './constants';
 
