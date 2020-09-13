@@ -1,6 +1,8 @@
 # eth2-wallet-js
 NodeJS implementation of an Ethereum 2 Wallet keystore.
 
+**UNDER ACTIVE DEVELOPMENT, NOT FOR PRODUCTION USE**
+
 -   [Dependencies](#dependencies)
 -   [Install](#install)
 -   [Test](#test)
