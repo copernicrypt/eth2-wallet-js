@@ -6,7 +6,7 @@ NodeJS implementation of an Ethereum 2 Wallet keystore.
 -   [Test](#test)
 -   [Basic NodeJS Usage](#basic-nodejs-usage)
 -   [Instance Options](#instance-options)
--   [CLI Usage](cli-usage)
+-   [CLI Usage](#cli-usage)
 -   [Functions](#functions)
 -   [Notes/Limitations](#noteslimitations)
 -   [Roadmap](#roadmap)
