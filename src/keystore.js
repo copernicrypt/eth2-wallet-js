@@ -8,7 +8,7 @@ import PQueue from 'p-queue';
 import * as types from './types';
 import * as utils from './utils';
 
-const DEPOSIT_CONTRACT = require('./depositContract.json');
+import DEPOSIT_CONTRACT from './depositContract.json';
 const init = bls.init(bls.BLS12_381);
 const HOMEDIR = require('os').homedir();
 const VERSION = 1;
