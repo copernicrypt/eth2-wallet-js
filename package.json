@@ -6,6 +6,7 @@
   "license": "MIT",
   "scripts": {
     "cli": "babel-node src/cli.js",
+    "jsdoc": "jsdoc2md src/keystore.js > api.md",
     "test": "jest",
     "test:cov": "jest --coverage"
   },
@@ -28,7 +29,8 @@
     "@babel/plugin-transform-runtime": "^7.11.5",
     "@babel/preset-env": "^7.11.5",
     "babel-jest": "^26.3.0",
-    "jest": "^26.4.2"
+    "jest": "^26.4.2",
+    "jsdoc-to-markdown": "^6.0.1"
   },
   "jest": {
     "testEnvironment": "node",

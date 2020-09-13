@@ -97,7 +97,7 @@ export default class Keystore {
    * @param  {String} password The password to protect the key.
    * @param  {String} keyId=UUID] The name of the key to create.
    * @return {Object} An object containing the wallet_id, key_id and public_key.
-   * @throws
+   * @throws On failure
    */
   async keyCreateAsync(walletId, password, keyId=uuidv4()) {
     try {
@@ -116,7 +116,7 @@ export default class Keystore {
    * @param  {String}  keyId    The Key ID.
    * @param  {String}  password The password protecting the key.
    * @return {Boolean}          True on successful deletion.
-   * @throws When unsuccessful.
+   * @throws On failure
    */
   async keyDelete(walletId, keyId, password) {
     try {
@@ -133,6 +133,7 @@ export default class Keystore {
    * @param  {String}  walletId The wallet ID.
    * @param  {String}  keyId    The Key ID.
    * @return {Boolean}          Whether or not the key ID already exists in the wallet.
+   * @throws On failure
    */
   async keyExists(search, walletId) {
     try {
@@ -157,7 +158,7 @@ export default class Keystore {
    * @param  {String}  password A password to protect the key.
    * @param  {String}  keyId The ID reference for the key.
    * @return {Object}  An object containing the walletId <string> key ID <UUID> and public key <48-byte HEX>
-   * @throws
+   * @throws On failure
    */
   async keyImportAsync(walletId, privateKey, password, keyId=uuidv4()) {
     try {
@@ -190,7 +191,7 @@ export default class Keystore {
    * @param  {String}  keyId    The Key ID.
    * @param  {String}  password The password protecting the key.
    * @return {String}           The 64-byte HEX formatted private key.
-   * @throws
+   * @throws On failure
    */
   async keyPrivate(walletId, keyId, password) {
     try {
@@ -205,6 +206,7 @@ export default class Keystore {
    * @param  {String}  search   Either an key ID or public key.
    * @param  {String}  walletId The wallet ID to search for keys.
    * @return {Object}  Object containing key_id and public_key.
+   * @throws On failure
    */
   async keySearch(search, walletId) {
     try {
@@ -229,9 +231,11 @@ export default class Keystore {
   }
 
   /**
-   * Signs a generic message with a private key.
-   * @param  {String}  message   [description]
-   * @param  {String}  publicKey [description]
+  * Signs a generic message with a private key.
+  * @param  {String}  message   The message to sign (32-Byte HEX)
+   * @param  {String}  walletId Wallet ID where the key is stored.
+   * @param  {String}  search   The key to search for. Accepts keyID, publicKey, and privateKey.
+   * @param  {String}  password Password protecting the signing key.
    * @return {Array}   The 96-byte BLS signature.
    */
   async sign(message, walletId, search, password) {
@@ -256,7 +260,7 @@ export default class Keystore {
    * @param  {String}  [opts.password=null] Password for HD wallets.
    * @param  {String}  [opts.mnemonic=null] BIP39 mnemonic for HD wallets.
    * @return {String}  The wallet identifier.
-   * @throws
+   * @throws On failure
    */
   async walletCreate(opts={}) {
     let defaults = { wallet_id: uuidv4(), type: 1 };
@@ -276,6 +280,7 @@ export default class Keystore {
    * Delete a wallet
    * @param  {String}  id The wallet identifier
    * @return {Boolean}    True if the delete was successful.
+   * @throws On failure
    */
   async walletDelete(walletId) {
     try {
@@ -300,6 +305,7 @@ export default class Keystore {
   /**
    * Return a list of available wallet IDs
    * @return {Array} A list of wallet IDs.
+   * @throws On failure
    */
   async walletList() {
     try {
@@ -330,11 +336,12 @@ export default class Keystore {
 
   /**
    * Modifies a wallet index file. Either adds or removes a key.
-   * @param  {[type]}  walletId         [description]
-   * @param  {[type]}  keyId            [description]
-   * @param  {[type]}  [publicKey=null] [description]
-   * @param  {Boolean} [remove=false]   [description]
-   * @return {Promise}                  [description]
+   * @param  {String}  walletId         The wallet file to modify
+   * @param  {String}  keyId            The key to modify
+   * @param  {String}  [publicKey=null] 48-Byte HEX public key
+   * @param  {Boolean} [remove=false]   Whether to remove the key
+   * @return {Boolean}                  True on sucess
+   * @throws On failure
    */
   async walletIndexKey(walletId, keyId, publicKey=null, remove=false) {
     try {
