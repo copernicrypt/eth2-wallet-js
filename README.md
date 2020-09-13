@@ -1,7 +1,7 @@
 # eth2-wallet-js
 NodeJS implementation of an Ethereum 2 Wallet keystore.
 
-**UNDER ACTIVE DEVELOPMENT, NOT FOR PRODUCTION USE**
+**\*\*UNDER ACTIVE DEVELOPMENT, NOT FOR PRODUCTION USE\*\***
 
 -   [Dependencies](#dependencies)
 -   [Install](#install)
@@ -18,6 +18,14 @@ NodeJS implementation of an Ethereum 2 Wallet keystore.
 -   [Nodejs](https://nodejs.org/en/download/) >= 12.0.0
 
 ## Install
+
+### NodeJS Module
+```shell
+yarn add https://github.com/copernicrypt/eth2-wallet-js
+yarn install
+```
+
+### CLI
 ```shell
 git clone https://github.com/copernicrypt/eth2-wallet-js
 yarn install
@@ -31,7 +39,7 @@ yarn test
 
 ## Basic NodeJS Usage
 ```javascript
-import Keystore from 'eth2-wallet-js';
+import { Keystore } from 'eth2-wallet-js';
 
 let ks = new Keystore();
 let wallet = Keystore.walletCreate();
@@ -40,11 +48,14 @@ let key = Keystore.keyCreate(wallet, 'mypassword');
 
 ## Instance Options
 ```javascript
+import { Keystore } from 'eth2-wallet-js';
+
 let opts = {
   algorithm: 'aes-256-cbc',
   wallet_path: '~/.eth2-wallet-js/wallet',
   fork_version: Buffer.from('00000001','hex')
 }
+
 let ks = new Keystore(opts);
 ```
 
