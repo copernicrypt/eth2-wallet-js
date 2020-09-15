@@ -7,6 +7,7 @@ import  { v4 as uuidv4 } from 'uuid';
 import PQueue from 'p-queue';
 import * as types from './types';
 import * as utils from './utils';
+import { getKeystore } from './keystore/index';
 
 import DEPOSIT_CONTRACT from './depositContract.json';
 const init = bls.init(bls.BLS12_381);
@@ -16,12 +17,12 @@ const FORK_VERSION = Buffer.from('00000001','hex');
 const BLS_WITHDRAWAL_PREFIX = Buffer.from('00', 'hex');
 const DEPOSIT_AMOUNT = BigInt(32000000000);
 
-class Keystore {
+class Wallet {
   constructor(opts={}) {
     let defaults = {
       wallet_path: `${HOMEDIR}/.eth2-wallet-js/wallet`,
       algorithm: 'aes-256-cbc',
-      fork_version: FORK_VERSION
+      fork_version: FORK_VERSION,
     }
     opts = { ...defaults, ...opts };
     this.version = VERSION;
@@ -29,6 +30,7 @@ class Keystore {
     this.algorithm = opts.algorithm;
     this.walletPath = opts.wallet_path;
     this.forkVersion = opts.fork_version;
+    this.keystore = getKeystore(this.algorithm);
   }
 
   /**
@@ -168,7 +170,7 @@ class Keystore {
       const sec = bls.deserializeHexStrToSecretKey(privateKey);
       const pub = sec.getPublicKey();
       const pubKeyHex = bls.toHexStr(pub.serialize());
-      let saveData = await this.encrypt(privateKey, password);
+      let saveData = await this.keystore.encrypt(privateKey, password, pubKeyHex);
 
       let walletFile = fs.promises.writeFile( `${this.walletPath}/${walletId}/${keyId}`, JSON.stringify(saveData) );
       let indexFile = this.walletIndexKey(walletId, keyId, pubKeyHex);
@@ -360,12 +362,12 @@ class Keystore {
     catch(error) { throw error; }
   }
 
-  async encrypt(text, password) {
+  async encrypt(privateKey, password) {
     const iv = crypto.randomBytes(16);
     const key = crypto.createHash('sha256').update(password).digest();
 
     let cipher = crypto.createCipheriv(this.algorithm, key, iv);
-    let encrypted = cipher.update(text);
+    let encrypted = cipher.update(privateKey);
     encrypted = Buffer.concat([encrypted, cipher.final()]);
     return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex') };
   }
@@ -373,17 +375,10 @@ class Keystore {
   async decrypt(walletId, keyId, password) {
     let buffer = await fs.promises.readFile(`${this.walletPath}/${walletId}/${keyId}`);
     let text = JSON.parse(buffer.toString());
-    let iv = Buffer.from(text.iv, 'hex');
-    const key = crypto.createHash('sha256').update(password).digest();
-
-    let encryptedText = Buffer.from(text.data, 'hex');
-    let decipher = crypto.createDecipheriv(this.algorithm, key, iv);
-    let decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    return decrypted.toString();
+    return await this.keystore.decrypt(text, password);
   }
 }
 
 module.exports = {
-  Keystore
+  Wallet
 }

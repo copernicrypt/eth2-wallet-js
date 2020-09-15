@@ -8,7 +8,7 @@
   "scripts": {
     "build": "rollup -c",
     "cli": "babel-node src/cli.js",
-    "jsdoc": "jsdoc2md src/keystore.js > api.md",
+    "jsdoc": "jsdoc2md src/wallet.js > api.md",
     "test": "jest",
     "test:cov": "jest --coverage"
   },

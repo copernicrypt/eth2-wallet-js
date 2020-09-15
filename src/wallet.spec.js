@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
-import { Keystore } from './keystore';
+import { Wallet } from './wallet';
 import * as types from './types';
 import walletMock from '../__mocks__/wallet.json';
 import attestMock from '../__mocks__/attestations.json';
@@ -14,9 +14,9 @@ const KEY_OBJECT = {
 }
 let walletDeleteList = [];
 
-describe('Keystore', () => {
+describe('Wallet', () => {
   let keystore;
-  beforeAll(async () => { keystore = new Keystore(); await keystore.init(); });
+  beforeAll(async () => { keystore = new Wallet(); await keystore.init(); });
   //afterAll(() =>  );
   beforeEach(async () => {
     await keystore.walletCreate({ wallet_id: walletMock.wallet_list[0] });
