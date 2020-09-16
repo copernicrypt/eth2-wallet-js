@@ -396,15 +396,15 @@ class Wallet {
   }
 
   async depositData(walletId, keyId, password, opts={} ) {
-    let defaults = { withdraw_key_id: keyId, withdraw_key_wallet: walletId, withdraw_public_key: null, amount: DEPOSIT_AMOUNT, raw: true };
+    let defaults = { withdrawal_key_id: keyId, withdrawal_key_wallet: walletId, withdrawal_public_key: null, amount: DEPOSIT_AMOUNT, raw: true };
     opts = {...defaults, ...opts };
     try {
       let validatorKey = await this.keySearch(keyId, walletId);
       let validatorPubKey = validatorKey.public_key;
       let withdrawPubKey;
-      if(PUBLIC_KEY.test(opts.withdraw_public_key)) withdrawPubKey = opts.withdraw_public_key;
+      if(PUBLIC_KEY.test(opts.withdrawal_public_key)) withdrawPubKey = opts.withdrawal_public_key;
       else {
-        let withdrawKey = await this.keySearch(opts.withdraw_key_id, opts.withdraw_key_wallet);
+        let withdrawKey = await this.keySearch(opts.withdrawal_key_id, opts.withdrawal_key_wallet);
         withdrawPubKey = withdrawKey.public_key;
       }
 
