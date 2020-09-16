@@ -1,5 +1,7 @@
 'use strict';
 
+Object.defineProperty(exports, '__esModule', { value: true });
+
 var _ = require('lodash');
 var crypto = require('crypto');
 var fs = require('fs');
@@ -9,6 +11,7 @@ var uuid = require('uuid');
 var PQueue = require('p-queue');
 var bigintBuffer = require('bigint-buffer');
 var mainnet = require('@chainsafe/lodestar-types/lib/ssz/presets/mainnet');
+var util = require('util');
 
 function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
@@ -17,9 +20,11 @@ var crypto__default = /*#__PURE__*/_interopDefaultLegacy(crypto);
 var fs__default = /*#__PURE__*/_interopDefaultLegacy(fs);
 var bls__default = /*#__PURE__*/_interopDefaultLegacy(bls);
 var PQueue__default = /*#__PURE__*/_interopDefaultLegacy(PQueue);
+var util__default = /*#__PURE__*/_interopDefaultLegacy(util);
 
 const PUBLIC_KEY = new RegExp("^(0x)?[0-9a-f]{96}$");
 const PRIVATE_KEY = new RegExp("^(0x)?[0-9a-f]{64}$");
+const UUID = new RegExp("^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$", 'i');
 
 /**
  * @module constants
@@ -70,6 +75,158 @@ function intToBytes(value, length, endian='le') {
     return bigintBuffer.toBufferBE(value, length);
   }
   throw new Error("endian must be either 'le' or 'be'");
+}
+
+/**
+ * Keystore implementation of EIP-2335
+ * @see https://github.com/ethereum/EIPs/blob/master/EIPS/eip-2335.md
+ * @type {Class}
+ */
+
+const pbkdf2 = util__default['default'].promisify(crypto__default['default'].pbkdf2);
+
+const VERSION = 4;
+const SUPPORTED_ALGOS = ['aes-256-cbc', 'aes-256-ctr', 'aes-192-cbc', 'aes-192-ctr', 'aes-128-cbc', 'aes-128-ctr'];
+const INTERATIONS = 262144;
+const DECRYPTION_KEY_LENGTH = 32;
+
+class Eip2335 {
+
+  constructor(algorithm='aes-256-cbc', version=VERSION) {
+    this.algorithm = algorithm;
+    this.version = version;
+    if(!SUPPORTED_ALGOS.includes(algorithm)) throw new Error(`Encryption algorithm not supported. Try ${SUPPORTED_ALGOS.toString()}`);
+    if(algorithm.substr(0, 7) === 'aes-128') this.keyLength = 16;
+    else if(algorithm.substr(0, 7) === 'aes-192') this.keyLength = 24;
+    else if(algorithm.substr(0, 7) === 'aes-256') this.keyLength = 32;
+  }
+
+  async encrypt(privateKey, password, publicKey, opts={}) {
+    // key_id needs to be a valid UUID for use in this spec. If it isn't create a new one.
+    if(!UUID.test(opts.key_id)) delete opts.key_id;
+    let defaults = { path: "", key_id: uuid.v4(), description: 'eth2-wallet-js key' };
+    opts = {...defaults, ...opts };
+    const iv = crypto__default['default'].randomBytes(16);
+    const salt = crypto__default['default'].randomBytes(32).toString('hex');
+    const key = await this.getDecryptionKey(password, salt);
+    let decryptionKey = Buffer.from(key,'hex');
+
+    let cipher = crypto__default['default'].createCipheriv(this.algorithm, decryptionKey.slice(0, this.keyLength), iv);
+    let encrypted = cipher.update(Buffer.from(privateKey, 'hex'));
+    encrypted = Buffer.concat([encrypted, cipher.final()]);
+    let encryptedHex = encrypted.toString('hex');
+    let checksum = this.getChecksum(key, encryptedHex);
+
+    return {
+      crypto: {
+        kdf: { function: 'pbkdf2', params: { dklen: DECRYPTION_KEY_LENGTH, c: INTERATIONS, prf: 'sha256', salt: salt.toString('hex') }, message: '' },
+        checksum: { function: 'sha256', params: {}, message: checksum },
+        cipher: { function: this.algorithm, params: { iv: iv.toString('hex') }, message: encryptedHex }
+      },
+      description: opts.description,
+      "pubkey": publicKey,
+      "path": opts.path,
+      "uuid": opts.key_id,
+      "version": this.version,
+    }
+  }
+
+  async decrypt(jsonKey, password) {
+    let ivBuf = Buffer.from(jsonKey.crypto.cipher.params.iv, 'hex');
+    let key = await this.getDecryptionKey(password, jsonKey.crypto.kdf.params.salt, jsonKey.crypto.kdf.params.c, jsonKey.crypto.kdf.params.dklen);
+    let decryptionKey = Buffer.from(key,'hex');
+    if(!this.verifyPassword(decryptionKey, jsonKey.crypto.cipher.message, jsonKey.crypto.checksum.message)) throw new Error('Invalid Password');
+
+    let encryptedText = Buffer.from(jsonKey.crypto.cipher.message, 'hex');
+    let decipher = crypto__default['default'].createDecipheriv(this.algorithm, decryptionKey.slice(0, this.keyLength), ivBuf);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString('hex');
+  }
+
+  verifyPassword(decryptionKey, cipher, checksum) {
+    try {
+      let keyChecksum = this.getChecksum(decryptionKey, cipher);
+      return (keyChecksum == checksum);
+    }
+    catch(error) { throw error; }
+  }
+
+  getChecksum(key, cipher) {
+    try {
+      let dkSlice = Buffer.from(key, 'hex').slice(16,32);
+      let preImage = Buffer.concat([dkSlice, Buffer.from(cipher, 'hex')]);
+      let checksum = crypto__default['default'].createHash('sha256').update(preImage).digest();
+      return checksum.toString('hex');
+    }
+    catch(error) { throw error; }
+  }
+
+  /**
+   * Gets a decryption key from store details
+   * @param  {String}  password The UTF8-encoded password.
+   * @param  {String}  salt     32-Byte HEX salt
+   * @return {String}           64-Byte HEX decryption key
+   * @throws On failure.
+   */
+  async getDecryptionKey(password, salt, iterations=INTERATIONS, keylength=DECRYPTION_KEY_LENGTH) {
+    try {
+      password = await this.passwordFilter(password);
+      let derivedKey = await pbkdf2(Buffer.from(password, 'utf8'), Buffer.from(salt, 'hex'), iterations, keylength, 'sha256');
+      return derivedKey.toString('hex');
+    }
+    catch(error) { throw error; }
+  }
+
+  async passwordFilter(password) {
+    let filtered = password.replace(/[\x00-\x1F\x7F-\x9F]/g, "");    return filtered;
+  }
+}
+
+const VERSION$1 = 1;
+const SUPPORTED_ALGOS$1 = ['aes-256-cbc', 'aes-256-ctr', 'aes-192-cbc', 'aes-192-ctr', 'aes-128-cbc', 'aes-128-ctr'];
+
+class SimpleJson {
+  constructor(algorithm='aes-256-cbc', version=VERSION$1) {
+    this.algorithm = algorithm;
+    this.version = version;
+    if(!SUPPORTED_ALGOS$1.includes(algorithm)) throw new Error(`Encryption algorithm not supported. Try ${SUPPORTED_ALGOS$1.toString()}`);
+    if(algorithm.substr(0, 7) === 'aes-128') this.keyLength = 16;
+    else if(algorithm.substr(0, 7) === 'aes-192') this.keyLength = 24;
+    else if(algorithm.substr(0, 7) === 'aes-256') this.keyLength = 32;
+  }
+
+  async encrypt(privateKey, password, publicKey, opts={}) {
+    let defaults = { path: "", key_id: uuid.v4() };
+    opts = {...defaults, ...opts };
+    const iv = crypto__default['default'].randomBytes(16);
+    const key = crypto__default['default'].createHash('sha256').update(password).digest();
+
+    let cipher = crypto__default['default'].createCipheriv(this.algorithm, key, iv);
+    let encrypted = cipher.update(privateKey);
+    encrypted = Buffer.concat([encrypted, cipher.final()]);
+    return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex'), public_key: publicKey, key_id: opts.key_id, path: opts.path };
+  }
+
+  async decrypt(jsonKey, password) {
+    let iv = Buffer.from(jsonKey.iv, 'hex');
+    const key = crypto__default['default'].createHash('sha256').update(password).digest();
+
+    let encryptedText = Buffer.from(jsonKey.data, 'hex');
+    let decipher = crypto__default['default'].createDecipheriv(this.algorithm, key, iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+  }
+}
+
+function getKeystore(algorithm, type) {
+  switch(type) {
+    case 'simple':
+      return new SimpleJson(algorithm);
+    default:
+      return new Eip2335(algorithm);
+  }
 }
 
 var abi = [
@@ -199,26 +356,34 @@ var DEPOSIT_CONTRACT = {
 	bytecode: bytecode
 };
 
+/**
+ * @module Wallet
+ */
 const init = bls__default['default'].init(bls__default['default'].BLS12_381);
 const HOMEDIR = require('os').homedir();
-const VERSION = 1;
+const VERSION$2 = 1;
 const FORK_VERSION = Buffer.from('00000001','hex');
 const BLS_WITHDRAWAL_PREFIX = Buffer.from('00', 'hex');
 const DEPOSIT_AMOUNT = BigInt(32000000000);
 
-class Keystore {
+/**
+ * An implementation of ETH2 Wallet
+ * @type {Object}
+ */
+class Wallet {
   constructor(opts={}) {
     let defaults = {
       wallet_path: `${HOMEDIR}/.eth2-wallet-js/wallet`,
       algorithm: 'aes-256-cbc',
-      fork_version: FORK_VERSION
+      fork_version: FORK_VERSION,
     };
     opts = { ...defaults, ...opts };
-    this.version = VERSION;
+    this.version = VERSION$2;
     this.queue = new PQueue__default['default']({ concurrency: 1 });
     this.algorithm = opts.algorithm;
     this.walletPath = opts.wallet_path;
     this.forkVersion = opts.fork_version;
+    this.keystore = getKeystore(this.algorithm);
   }
 
   /**
@@ -358,7 +523,7 @@ class Keystore {
       const sec = bls__default['default'].deserializeHexStrToSecretKey(privateKey);
       const pub = sec.getPublicKey();
       const pubKeyHex = bls__default['default'].toHexStr(pub.serialize());
-      let saveData = await this.encrypt(privateKey, password);
+      let saveData = await this.keystore.encrypt(privateKey, password, pubKeyHex, { key_id: keyId });
 
       let walletFile = fs__default['default'].promises.writeFile( `${this.walletPath}/${walletId}/${keyId}`, JSON.stringify(saveData) );
       let indexFile = this.walletIndexKey(walletId, keyId, pubKeyHex);
@@ -383,8 +548,9 @@ class Keystore {
    */
   async keyPrivate(walletId, keyId, password) {
     try {
-      let data = await this.decrypt(walletId, keyId, password);
-      return data;
+      let buffer = await fs__default['default'].promises.readFile(`${this.walletPath}/${walletId}/${keyId}`);
+      let text = JSON.parse(buffer.toString());
+      return await this.keystore.decrypt(text, password);
     }
     catch(error) { throw error; }
   }
@@ -549,31 +715,6 @@ class Keystore {
     }
     catch(error) { throw error; }
   }
-
-  async encrypt(text, password) {
-    const iv = crypto__default['default'].randomBytes(16);
-    const key = crypto__default['default'].createHash('sha256').update(password).digest();
-
-    let cipher = crypto__default['default'].createCipheriv(this.algorithm, key, iv);
-    let encrypted = cipher.update(text);
-    encrypted = Buffer.concat([encrypted, cipher.final()]);
-    return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex') };
-  }
-
-  async decrypt(walletId, keyId, password) {
-    let buffer = await fs__default['default'].promises.readFile(`${this.walletPath}/${walletId}/${keyId}`);
-    let text = JSON.parse(buffer.toString());
-    let iv = Buffer.from(text.iv, 'hex');
-    const key = crypto__default['default'].createHash('sha256').update(password).digest();
-
-    let encryptedText = Buffer.from(text.data, 'hex');
-    let decipher = crypto__default['default'].createDecipheriv(this.algorithm, key, iv);
-    let decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    return decrypted.toString();
-  }
 }
 
-module.exports = {
-  Keystore
-};
+exports.Wallet = Wallet;
