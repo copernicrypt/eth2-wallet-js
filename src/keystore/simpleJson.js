@@ -1,9 +1,10 @@
 import crypto from 'crypto';
+import  { v4 as uuidv4 } from 'uuid';
 
 const VERSION = 1;
 const SUPPORTED_ALGOS = ['aes-256-cbc', 'aes-256-ctr', 'aes-192-cbc', 'aes-192-ctr', 'aes-128-cbc', 'aes-128-ctr'];
 
-class SimpleJson {
+export class SimpleJson {
   constructor(algorithm='aes-256-cbc', version=VERSION) {
     this.algorithm = algorithm;
     this.version = version;
@@ -13,14 +14,16 @@ class SimpleJson {
     else if(algorithm.substr(0, 7) === 'aes-256') this.keyLength = 32;
   }
 
-  async encrypt(privateKey, password, publicKey) {
+  async encrypt(privateKey, password, publicKey, opts={}) {
+    let defaults = { path: "", uuid: uuidv4() }
+    opts = {...defaults, ...opts };
     const iv = crypto.randomBytes(16);
     const key = crypto.createHash('sha256').update(password).digest();
 
     let cipher = crypto.createCipheriv(this.algorithm, key, iv);
     let encrypted = cipher.update(privateKey);
     encrypted = Buffer.concat([encrypted, cipher.final()]);
-    return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex'), public_key: publicKey };
+    return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex'), public_key: publicKey, uuid: opts.uuid, path: opts.path };
   }
 
   async decrypt(jsonKey, password) {
@@ -33,8 +36,4 @@ class SimpleJson {
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
   }
-}
-
-module.exports = {
-  SimpleJson
 }

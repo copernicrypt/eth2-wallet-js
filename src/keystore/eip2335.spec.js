@@ -1,13 +1,16 @@
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
+import { matchers } from 'jest-json-schema';
 import { Eip2335 } from './eip2335';
 import * as types from '../types';
 import storeMock from '../../__mocks__/eip2335.json';
 import walletMock from '../../__mocks__/wallet.json';
+import schema from '../schemas/eip2335';
 
 const TEST_PASSWORD = 'testpassword🔑';
 const TEST_PASSWORD_HEX = '7465737470617373776f7264f09f9491';
 const TEST_SECRET_HEX = '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f';
+expect.extend(matchers);
 
 describe('Store', () => {
   let store;
@@ -37,8 +40,9 @@ describe('Store', () => {
 
   describe('encrypt', () => {
     it('returns a key object', async () => {
+      expect(schema).toBeValidSchema();
       let result = await store.encrypt(TEST_SECRET_HEX, TEST_PASSWORD);
-      //console.log(result);
+      expect(result).toMatchSchema(schema);
     });
   });
 

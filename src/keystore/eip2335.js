@@ -14,7 +14,7 @@ const SUPPORTED_ALGOS = ['aes-256-cbc', 'aes-256-ctr', 'aes-192-cbc', 'aes-192-c
 const INTERATIONS = 262144;
 const DECRYPTION_KEY_LENGTH = 32;
 
-class Eip2335 {
+export class Eip2335 {
 
   constructor(algorithm='aes-256-cbc', version=VERSION) {
     this.algorithm = algorithm;
@@ -103,8 +103,4 @@ class Eip2335 {
     let filtered = password.replace(/[\x00-\x1F\x7F-\x9F]/g, "");;
     return filtered;
   }
-}
-
-module.exports = {
-  Eip2335
 }
