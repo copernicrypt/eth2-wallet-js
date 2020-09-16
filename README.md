@@ -41,17 +41,17 @@ yarn test
 
 ## Basic NodeJS Usage
 ```javascript
-import { Keystore } from 'eth2-wallet-js';
+import { Wallet } from 'eth2-wallet-js';
 
-let ks = new Keystore();
-await ks.init();
-let wallet = await Keystore.walletCreate();
-let key = await Keystore.keyCreate(wallet, 'mypassword');
+let w = new Wallet();
+await w.init();
+let wallet = await w.walletCreate();
+let key = await w.keyCreate(wallet, 'mypassword');
 ```
 
 ## Instance Options
 ```javascript
-import { Keystore } from 'eth2-wallet-js';
+import { Wallet } from 'eth2-wallet-js';
 
 let opts = {
   algorithm: 'aes-256-cbc',
@@ -59,8 +59,8 @@ let opts = {
   fork_version: Buffer.from('00000001','hex')
 }
 
-let ks = new Keystore(opts);
-await ks.init();
+let w = new Wallet(opts);
+await w.init();
 ```
 
 ## CLI Usage

@@ -24,6 +24,7 @@ var util__default = /*#__PURE__*/_interopDefaultLegacy(util);
 
 const PUBLIC_KEY = new RegExp("^(0x)?[0-9a-f]{96}$");
 const PRIVATE_KEY = new RegExp("^(0x)?[0-9a-f]{64}$");
+const UUID = new RegExp("^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$", 'i');
 
 /**
  * @module constants
@@ -101,7 +102,9 @@ class Eip2335 {
   }
 
   async encrypt(privateKey, password, publicKey, opts={}) {
-    let defaults = { path: "", uuid: uuid.v4(), description: 'eth2-wallet-js key' };
+    // key_id needs to be a valid UUID for use in this spec. If it isn't create a new one.
+    if(!UUID.test(opts.key_id)) delete opts.key_id;
+    let defaults = { path: "", key_id: uuid.v4(), description: 'eth2-wallet-js key' };
     opts = {...defaults, ...opts };
     const iv = crypto__default['default'].randomBytes(16);
     const salt = crypto__default['default'].randomBytes(32).toString('hex');
@@ -123,7 +126,7 @@ class Eip2335 {
       description: opts.description,
       "pubkey": publicKey,
       "path": opts.path,
-      "uuid": opts.uuid,
+      "uuid": opts.key_id,
       "version": this.version,
     }
   }
@@ -132,6 +135,7 @@ class Eip2335 {
     let ivBuf = Buffer.from(jsonKey.crypto.cipher.params.iv, 'hex');
     let key = await this.getDecryptionKey(password, jsonKey.crypto.kdf.params.salt, jsonKey.crypto.kdf.params.c, jsonKey.crypto.kdf.params.dklen);
     let decryptionKey = Buffer.from(key,'hex');
+    if(!this.verifyPassword(decryptionKey, jsonKey.crypto.cipher.message, jsonKey.crypto.checksum.message)) throw new Error('Invalid Password');
 
     let encryptedText = Buffer.from(jsonKey.crypto.cipher.message, 'hex');
     let decipher = crypto__default['default'].createDecipheriv(this.algorithm, decryptionKey.slice(0, this.keyLength), ivBuf);
@@ -193,7 +197,7 @@ class SimpleJson {
   }
 
   async encrypt(privateKey, password, publicKey, opts={}) {
-    let defaults = { path: "", uuid: uuid.v4() };
+    let defaults = { path: "", key_id: uuid.v4() };
     opts = {...defaults, ...opts };
     const iv = crypto__default['default'].randomBytes(16);
     const key = crypto__default['default'].createHash('sha256').update(password).digest();
@@ -201,7 +205,7 @@ class SimpleJson {
     let cipher = crypto__default['default'].createCipheriv(this.algorithm, key, iv);
     let encrypted = cipher.update(privateKey);
     encrypted = Buffer.concat([encrypted, cipher.final()]);
-    return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex'), public_key: publicKey, uuid: opts.uuid, path: opts.path };
+    return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex'), public_key: publicKey, key_id: opts.key_id, path: opts.path };
   }
 
   async decrypt(jsonKey, password) {
@@ -352,6 +356,9 @@ var DEPOSIT_CONTRACT = {
 	bytecode: bytecode
 };
 
+/**
+ * @module Wallet
+ */
 const init = bls__default['default'].init(bls__default['default'].BLS12_381);
 const HOMEDIR = require('os').homedir();
 const VERSION$2 = 1;
@@ -359,6 +366,10 @@ const FORK_VERSION = Buffer.from('00000001','hex');
 const BLS_WITHDRAWAL_PREFIX = Buffer.from('00', 'hex');
 const DEPOSIT_AMOUNT = BigInt(32000000000);
 
+/**
+ * An implementation of ETH2 Wallet
+ * @type {Object}
+ */
 class Wallet {
   constructor(opts={}) {
     let defaults = {
@@ -512,7 +523,7 @@ class Wallet {
       const sec = bls__default['default'].deserializeHexStrToSecretKey(privateKey);
       const pub = sec.getPublicKey();
       const pubKeyHex = bls__default['default'].toHexStr(pub.serialize());
-      let saveData = await this.keystore.encrypt(privateKey, password, pubKeyHex);
+      let saveData = await this.keystore.encrypt(privateKey, password, pubKeyHex, { key_id: keyId });
 
       let walletFile = fs__default['default'].promises.writeFile( `${this.walletPath}/${walletId}/${keyId}`, JSON.stringify(saveData) );
       let indexFile = this.walletIndexKey(walletId, keyId, pubKeyHex);
@@ -537,8 +548,9 @@ class Wallet {
    */
   async keyPrivate(walletId, keyId, password) {
     try {
-      let data = await this.decrypt(walletId, keyId, password);
-      return data;
+      let buffer = await fs__default['default'].promises.readFile(`${this.walletPath}/${walletId}/${keyId}`);
+      let text = JSON.parse(buffer.toString());
+      return await this.keystore.decrypt(text, password);
     }
     catch(error) { throw error; }
   }
@@ -702,22 +714,6 @@ class Wallet {
       return true;
     }
     catch(error) { throw error; }
-  }
-
-  async encrypt(privateKey, password) {
-    const iv = crypto__default['default'].randomBytes(16);
-    const key = crypto__default['default'].createHash('sha256').update(password).digest();
-
-    let cipher = crypto__default['default'].createCipheriv(this.algorithm, key, iv);
-    let encrypted = cipher.update(privateKey);
-    encrypted = Buffer.concat([encrypted, cipher.final()]);
-    return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex') };
-  }
-
-  async decrypt(walletId, keyId, password) {
-    let buffer = await fs__default['default'].promises.readFile(`${this.walletPath}/${walletId}/${keyId}`);
-    let text = JSON.parse(buffer.toString());
-    return await this.keystore.decrypt(text, password);
   }
 }
 

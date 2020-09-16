@@ -1,3 +1,6 @@
+/**
+ * @module Wallet
+ */
 import _ from 'lodash';
 import crypto from 'crypto';
 import fs from 'fs';
@@ -17,6 +20,10 @@ const FORK_VERSION = Buffer.from('00000001','hex');
 const BLS_WITHDRAWAL_PREFIX = Buffer.from('00', 'hex');
 const DEPOSIT_AMOUNT = BigInt(32000000000);
 
+/**
+ * An implementation of ETH2 Wallet
+ * @type {Object}
+ */
 export class Wallet {
   constructor(opts={}) {
     let defaults = {
