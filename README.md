@@ -415,10 +415,10 @@ Modifies a wallet index file. Either adds or removes a key.
 -   All core functions return promises.
 
 ## Roadmap
+-   ~Implement [EIP-2335](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-2335.md)~
+-   Add Import/Export function
 -   Add support for BIP-39 HD wallets
 -   Add support for password files
--   Add Import/Export function
--   Implement [EIP-2335](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-2335.md)
 
 ## Thanks
 Would not be possible without the work being done by [@chainsafe](https://github.com/ChainSafe/) and [@herumi](https://github.com/herumi/)
