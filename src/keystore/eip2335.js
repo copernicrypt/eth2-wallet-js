@@ -6,6 +6,7 @@
 import crypto from 'crypto';
 import util from 'util';
 import  { v4 as uuidv4 } from 'uuid';
+import * as types from '../types';
 
 const pbkdf2 = util.promisify(crypto.pbkdf2);
 
@@ -26,7 +27,9 @@ export class Eip2335 {
   }
 
   async encrypt(privateKey, password, publicKey, opts={}) {
-    let defaults = { path: "", uuid: uuidv4(), description: 'eth2-wallet-js key' }
+    // key_id needs to be a valid UUID for use in this spec. If it isn't create a new one.
+    if(!types.UUID.test(opts.key_id)) delete opts.key_id;
+    let defaults = { path: "", key_id: uuidv4(), description: 'eth2-wallet-js key' }
     opts = {...defaults, ...opts };
     const iv = crypto.randomBytes(16);
     const salt = crypto.randomBytes(32).toString('hex');
@@ -48,7 +51,7 @@ export class Eip2335 {
       description: opts.description,
       "pubkey": publicKey,
       "path": opts.path,
-      "uuid": opts.uuid,
+      "uuid": opts.key_id,
       "version": this.version,
     }
   }
@@ -57,6 +60,7 @@ export class Eip2335 {
     let ivBuf = Buffer.from(jsonKey.crypto.cipher.params.iv, 'hex');
     let key = await this.getDecryptionKey(password, jsonKey.crypto.kdf.params.salt, jsonKey.crypto.kdf.params.c, jsonKey.crypto.kdf.params.dklen);
     let decryptionKey = Buffer.from(key,'hex');
+    if(!this.verifyPassword(decryptionKey, jsonKey.crypto.cipher.message, jsonKey.crypto.checksum.message)) throw new Error('Invalid Password');
 
     let encryptedText = Buffer.from(jsonKey.crypto.cipher.message, 'hex');
     let decipher = crypto.createDecipheriv(this.algorithm, decryptionKey.slice(0, this.keyLength), ivBuf);

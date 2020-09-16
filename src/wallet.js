@@ -170,7 +170,7 @@ export class Wallet {
       const sec = bls.deserializeHexStrToSecretKey(privateKey);
       const pub = sec.getPublicKey();
       const pubKeyHex = bls.toHexStr(pub.serialize());
-      let saveData = await this.keystore.encrypt(privateKey, password, pubKeyHex);
+      let saveData = await this.keystore.encrypt(privateKey, password, pubKeyHex, { key_id: keyId });
 
       let walletFile = fs.promises.writeFile( `${this.walletPath}/${walletId}/${keyId}`, JSON.stringify(saveData) );
       let indexFile = this.walletIndexKey(walletId, keyId, pubKeyHex);
@@ -195,8 +195,9 @@ export class Wallet {
    */
   async keyPrivate(walletId, keyId, password) {
     try {
-      let data = await this.decrypt(walletId, keyId, password);
-      return data;
+      let buffer = await fs.promises.readFile(`${this.walletPath}/${walletId}/${keyId}`);
+      let text = JSON.parse(buffer.toString());
+      return await this.keystore.decrypt(text, password);
     }
     catch(error) { throw error; }
   }
@@ -360,21 +361,5 @@ export class Wallet {
       return true;
     }
     catch(error) { throw error; }
-  }
-
-  async encrypt(privateKey, password) {
-    const iv = crypto.randomBytes(16);
-    const key = crypto.createHash('sha256').update(password).digest();
-
-    let cipher = crypto.createCipheriv(this.algorithm, key, iv);
-    let encrypted = cipher.update(privateKey);
-    encrypted = Buffer.concat([encrypted, cipher.final()]);
-    return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex') };
-  }
-
-  async decrypt(walletId, keyId, password) {
-    let buffer = await fs.promises.readFile(`${this.walletPath}/${walletId}/${keyId}`);
-    let text = JSON.parse(buffer.toString());
-    return await this.keystore.decrypt(text, password);
   }
 }
