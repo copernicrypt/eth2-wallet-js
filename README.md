@@ -195,59 +195,78 @@ $ yarn run cli depositData --wallet=primary --password=testpassword --key=testac
 
 ## Functions
 
-<dl>
-<dt><a href="#init">init()</a> ⇒ <code>Null</code></dt>
-<dd><p>This just awaits the initialization of the BLS package.</p>
-</dd>
-<dt><a href="#keyCreateAsync">keyCreateAsync(wallet_id, password, keyId)</a> ⇒ <code>Object</code></dt>
-<dd><p>Creates a new ETH2 keypair.</p>
-</dd>
-<dt><a href="#keyDelete">keyDelete(walletId, keyId, password)</a> ⇒ <code>Boolean</code></dt>
-<dd><p>Removes a key from a wallet.</p>
-</dd>
-<dt><a href="#keyExists">keyExists(walletId, keyId)</a> ⇒ <code>Boolean</code></dt>
-<dd><p>Check whether a key already exists.</p>
-</dd>
-<dt><a href="#keyImportAsync">keyImportAsync(walletId, privateKey, password, keyId)</a> ⇒ <code>Object</code></dt>
-<dd><p>Import a private key into the keystore</p>
-</dd>
-<dt><a href="#keyPrivate">keyPrivate(walletId, keyId, password)</a> ⇒ <code>String</code></dt>
-<dd><p>Get a private key</p>
-</dd>
-<dt><a href="#keySearch">keySearch(search, walletId)</a> ⇒ <code>Object</code></dt>
-<dd><p>Finds key information.</p>
-</dd>
-<dt><a href="#sign">sign(message, walletId, search, password)</a> ⇒ <code>Array</code></dt>
-<dd><p>Signs a generic message with a private key.</p>
-</dd>
-<dt><a href="#walletCreate">walletCreate([opts])</a> ⇒ <code>String</code></dt>
-<dd><p>Creates a new wallet to store keys.</p>
-</dd>
-<dt><a href="#walletDelete">walletDelete(id)</a> ⇒ <code>Boolean</code></dt>
-<dd><p>Delete a wallet</p>
-</dd>
-<dt><a href="#walletList">walletList()</a> ⇒ <code>Array</code></dt>
-<dd><p>Return a list of available wallet IDs</p>
-</dd>
-<dt><a href="#walletListKeys">walletListKeys(id)</a> ⇒ <code>Array</code></dt>
-<dd><p>List of available keys in a wallet.</p>
-</dd>
-<dt><a href="#walletIndexKey">walletIndexKey(walletId, keyId, [publicKey], [remove])</a> ⇒ <code>Boolean</code></dt>
-<dd><p>Modifies a wallet index file. Either adds or removes a key.</p>
-</dd>
-</dl>
+* [Wallet](#module_Wallet)
+    * [.Wallet](#module_Wallet.Wallet) : <code>Object</code>
+        * [.init()](#module_Wallet.Wallet+init) ⇒ <code>Null</code>
+        * [.depositData(walletId, keyId, password, withdrawalOpts)](#module_Wallet.Wallet+depositData) ⇒ <code>Object</code> \| <code>String</code>
+        * [.keyCreateAsync(wallet_id, password, keyId)](#module_Wallet.Wallet+keyCreateAsync) ⇒ <code>Object</code>
+        * [.keyDelete(walletId, keyId, password)](#module_Wallet.Wallet+keyDelete) ⇒ <code>Boolean</code>
+        * [.keyExists(walletId, keyId)](#module_Wallet.Wallet+keyExists) ⇒ <code>Boolean</code>
+        * [.keyImportAsync(walletId, privateKey, password, keyId)](#module_Wallet.Wallet+keyImportAsync) ⇒ <code>Object</code>
+        * [.keyPrivate(walletId, keyId, password)](#module_Wallet.Wallet+keyPrivate) ⇒ <code>String</code>
+        * [.keySearch(search, walletId)](#module_Wallet.Wallet+keySearch) ⇒ <code>Object</code>
+        * [.sign(message, walletId, search, password)](#module_Wallet.Wallet+sign) ⇒ <code>Array</code>
+        * [.walletCreate([opts])](#module_Wallet.Wallet+walletCreate) ⇒ <code>String</code>
+        * [.walletDelete(id)](#module_Wallet.Wallet+walletDelete) ⇒ <code>Boolean</code>
+        * [.walletExists(walletId)](#module_Wallet.Wallet+walletExists) ⇒ <code>Boolean</code>
+        * [.walletList()](#module_Wallet.Wallet+walletList) ⇒ <code>Array</code>
+        * [.walletListKeys(id)](#module_Wallet.Wallet+walletListKeys) ⇒ <code>Array</code>
+        * [.walletIndexKey(walletId, keyId, [publicKey], [remove])](#module_Wallet.Wallet+walletIndexKey) ⇒ <code>Boolean</code>
 
-<a name="init"></a>
+<a name="module_Wallet.Wallet"></a>
 
-### init() ⇒ <code>Null</code>
+### Wallet.Wallet : <code>Object</code>
+An implementation of ETH2 Wallet
+
+**Kind**: static class of [<code>Wallet</code>](#module_Wallet)  
+
+* [.Wallet](#module_Wallet.Wallet) : <code>Object</code>
+    * [.init()](#module_Wallet.Wallet+init) ⇒ <code>Null</code>
+    * [.depositData(walletId, keyId, password, withdrawalOpts)](#module_Wallet.Wallet+depositData) ⇒ <code>Object</code> \| <code>String</code>
+    * [.keyCreateAsync(wallet_id, password, keyId)](#module_Wallet.Wallet+keyCreateAsync) ⇒ <code>Object</code>
+    * [.keyDelete(walletId, keyId, password)](#module_Wallet.Wallet+keyDelete) ⇒ <code>Boolean</code>
+    * [.keyExists(walletId, keyId)](#module_Wallet.Wallet+keyExists) ⇒ <code>Boolean</code>
+    * [.keyImportAsync(walletId, privateKey, password, keyId)](#module_Wallet.Wallet+keyImportAsync) ⇒ <code>Object</code>
+    * [.keyPrivate(walletId, keyId, password)](#module_Wallet.Wallet+keyPrivate) ⇒ <code>String</code>
+    * [.keySearch(search, walletId)](#module_Wallet.Wallet+keySearch) ⇒ <code>Object</code>
+    * [.sign(message, walletId, search, password)](#module_Wallet.Wallet+sign) ⇒ <code>Array</code>
+    * [.walletCreate([opts])](#module_Wallet.Wallet+walletCreate) ⇒ <code>String</code>
+    * [.walletDelete(id)](#module_Wallet.Wallet+walletDelete) ⇒ <code>Boolean</code>
+    * [.walletExists(walletId)](#module_Wallet.Wallet+walletExists) ⇒ <code>Boolean</code>
+    * [.walletList()](#module_Wallet.Wallet+walletList) ⇒ <code>Array</code>
+    * [.walletListKeys(id)](#module_Wallet.Wallet+walletListKeys) ⇒ <code>Array</code>
+    * [.walletIndexKey(walletId, keyId, [publicKey], [remove])](#module_Wallet.Wallet+walletIndexKey) ⇒ <code>Boolean</code>
+
+<a name="module_Wallet.Wallet+init"></a>
+
+#### wallet.init() ⇒ <code>Null</code>
 This just awaits the initialization of the BLS package.
 
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
+<a name="module_Wallet.Wallet+depositData"></a>
 
-<a name="keyCreateAsync"></a>
+#### wallet.depositData(walletId, keyId, password, withdrawalOpts) ⇒ <code>Object</code> \| <code>String</code>
+Gets the deposit data fields for a validator deposit on the ETH1 chain.
 
-### keyCreateAsync(wallet_id, password, keyId) ⇒ <code>Object</code>
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
+**Returns**: <code>Object</code> \| <code>String</code> - Either an object containing the depoosit fields, or the raw TX data string.  
+
+| Param | Type | Default | Description |
+| --- | --- | --- | --- |
+| walletId | <code>String</code> |  | The wallet ID where the validator key is stored. |
+| keyId | <code>String</code> |  | The key ID of the validator to generate data for. |
+| password | <code>String</code> |  | The password of the validator key. |
+| withdrawalOpts | <code>Object</code> |  | Withdrawal Parameters. Either withdrawalOpts.withdrawal_public_key, withdrawalOpts.withdrawal_key_id or withdrawalOpts.withdrawal_key_wallet must be specified. |
+| [withdrawalOpts.withdrawal_key_id] | <code>String</code> | <code>&lt;keyId&gt;</code> | The keyID of the Withdrawal key. |
+| [withdrawalOpts.withdrawal_key_wallet] | <code>String</code> | <code>&lt;walletId&gt;</code> | The wallet ID where the withdrawal key is stored. |
+| [withdrawalOpts.withdrawal_public_key] | <code>String</code> | <code></code> | The public key of the withdrawal key. Overrides withdrawal_key_wallet and withdrawal_key_id. |
+
+<a name="module_Wallet.Wallet+keyCreateAsync"></a>
+
+#### wallet.keyCreateAsync(wallet_id, password, keyId) ⇒ <code>Object</code>
 Creates a new ETH2 keypair.
 
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
 **Returns**: <code>Object</code> - An object containing the wallet_id, key_id and public_key.  
 **Throws**: On failure
 
@@ -258,11 +277,12 @@ Creates a new ETH2 keypair.
 | password | <code>String</code> |  | The password to protect the key. |
 | keyId | <code>String</code> | <code>UUID</code> | The name of the key to create. |
 
-<a name="keyDelete"></a>
+<a name="module_Wallet.Wallet+keyDelete"></a>
 
-### keyDelete(walletId, keyId, password) ⇒ <code>Boolean</code>
+#### wallet.keyDelete(walletId, keyId, password) ⇒ <code>Boolean</code>
 Removes a key from a wallet.
 
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
 **Returns**: <code>Boolean</code> - True on successful deletion.  
 **Throws**: On failure
 
@@ -273,11 +293,12 @@ Removes a key from a wallet.
 | keyId | <code>String</code> | The Key ID. |
 | password | <code>String</code> | The password protecting the key. |
 
-<a name="keyExists"></a>
+<a name="module_Wallet.Wallet+keyExists"></a>
 
-### keyExists(walletId, keyId) ⇒ <code>Boolean</code>
+#### wallet.keyExists(walletId, keyId) ⇒ <code>Boolean</code>
 Check whether a key already exists.
 
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
 **Returns**: <code>Boolean</code> - Whether or not the key ID already exists in the wallet.  
 **Throws**: On failure
 
@@ -287,11 +308,12 @@ Check whether a key already exists.
 | walletId | <code>String</code> | The wallet ID. |
 | keyId | <code>String</code> | The Key ID. |
 
-<a name="keyImportAsync"></a>
+<a name="module_Wallet.Wallet+keyImportAsync"></a>
 
-### keyImportAsync(walletId, privateKey, password, keyId) ⇒ <code>Object</code>
+#### wallet.keyImportAsync(walletId, privateKey, password, keyId) ⇒ <code>Object</code>
 Import a private key into the keystore
 
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
 **Returns**: <code>Object</code> - An object containing the walletId <string> key ID <UUID> and public key <48-byte HEX>  
 **Throws**: On failure
 
@@ -303,11 +325,12 @@ Import a private key into the keystore
 | password | <code>String</code> | A password to protect the key. |
 | keyId | <code>String</code> | The ID reference for the key. |
 
-<a name="keyPrivate"></a>
+<a name="module_Wallet.Wallet+keyPrivate"></a>
 
-### keyPrivate(walletId, keyId, password) ⇒ <code>String</code>
+#### wallet.keyPrivate(walletId, keyId, password) ⇒ <code>String</code>
 Get a private key
 
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
 **Returns**: <code>String</code> - The 64-byte HEX formatted private key.  
 **Throws**: On failure
 
@@ -318,11 +341,12 @@ Get a private key
 | keyId | <code>String</code> | The Key ID. |
 | password | <code>String</code> | The password protecting the key. |
 
-<a name="keySearch"></a>
+<a name="module_Wallet.Wallet+keySearch"></a>
 
-### keySearch(search, walletId) ⇒ <code>Object</code>
+#### wallet.keySearch(search, walletId) ⇒ <code>Object</code>
 Finds key information.
 
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
 **Returns**: <code>Object</code> - Object containing key_id and public_key.  
 **Throws**: On failure
 
@@ -332,11 +356,12 @@ Finds key information.
 | search | <code>String</code> | Either an key ID or public key. |
 | walletId | <code>String</code> | The wallet ID to search for keys. |
 
-<a name="sign"></a>
+<a name="module_Wallet.Wallet+sign"></a>
 
-### sign(message, walletId, search, password) ⇒ <code>Array</code>
+#### wallet.sign(message, walletId, search, password) ⇒ <code>Array</code>
 Signs a generic message with a private key.
 
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
 **Returns**: <code>Array</code> - The 96-byte BLS signature.  
 
 | Param | Type | Description |
@@ -346,11 +371,12 @@ Signs a generic message with a private key.
 | search | <code>String</code> | The key to search for. Accepts keyID, publicKey, and privateKey. |
 | password | <code>String</code> | Password protecting the signing key. |
 
-<a name="walletCreate"></a>
+<a name="module_Wallet.Wallet+walletCreate"></a>
 
-### walletCreate([opts]) ⇒ <code>String</code>
+#### wallet.walletCreate([opts]) ⇒ <code>String</code>
 Creates a new wallet to store keys.
 
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
 **Returns**: <code>String</code> - The wallet identifier.  
 **Throws**: On failure
 
@@ -363,42 +389,59 @@ Creates a new wallet to store keys.
 | [opts.password] | <code>String</code> | <code></code> | Password for HD wallets. |
 | [opts.mnemonic] | <code>String</code> | <code></code> | BIP39 mnemonic for HD wallets. |
 
-<a name="walletDelete"></a>
+<a name="module_Wallet.Wallet+walletDelete"></a>
 
-### walletDelete(id) ⇒ <code>Boolean</code>
+#### wallet.walletDelete(id) ⇒ <code>Boolean</code>
 Delete a wallet
 
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
 **Returns**: <code>Boolean</code> - True if the delete was successful.  
 **Throws**: On failure
+
 
 | Param | Type | Description |
 | --- | --- | --- |
 | id | <code>String</code> | The wallet identifier |
 
-<a name="walletList"></a>
+<a name="module_Wallet.Wallet+walletExists"></a>
 
-### walletList() ⇒ <code>Array</code>
+#### wallet.walletExists(walletId) ⇒ <code>Boolean</code>
+Check if a wallet exists.
+
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
+**Returns**: <code>Boolean</code> - True if the wallet exists, false otherwise.  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| walletId | <code>String</code> | The wallet ID to search for. |
+
+<a name="module_Wallet.Wallet+walletList"></a>
+
+#### wallet.walletList() ⇒ <code>Array</code>
 Return a list of available wallet IDs
 
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
 **Returns**: <code>Array</code> - A list of wallet IDs.  
 **Throws**: On failure
 
-<a name="walletListKeys"></a>
+<a name="module_Wallet.Wallet+walletListKeys"></a>
 
-### walletListKeys(id) ⇒ <code>Array</code>
+#### wallet.walletListKeys(id) ⇒ <code>Array</code>
 List of available keys in a wallet.
 
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
 **Returns**: <code>Array</code> - An array of key objects.  
 
 | Param | Type | Description |
 | --- | --- | --- |
 | id | <code>String</code> | The wallet ID to search |
 
-<a name="walletIndexKey"></a>
+<a name="module_Wallet.Wallet+walletIndexKey"></a>
 
-### walletIndexKey(walletId, keyId, [publicKey], [remove]) ⇒ <code>Boolean</code>
+#### wallet.walletIndexKey(walletId, keyId, [publicKey], [remove]) ⇒ <code>Boolean</code>
 Modifies a wallet index file. Either adds or removes a key.
 
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
 **Returns**: <code>Boolean</code> - True on sucess  
 **Throws**: On failure
 

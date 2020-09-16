@@ -49,9 +49,23 @@ export class Wallet {
     return;
   }
 
-  async depositData(walletId, keyId, password, opts={} ) {
+  /**
+   * Gets the deposit data fields for a validator deposit on the ETH1 chain.
+   * @param  {String}  walletId  The wallet ID where the validator key is stored.
+   * @param  {String}  keyId     The key ID of the validator to generate data for.
+   * @param  {String}  password  The password of the validator key.
+   * @param  {Object} withdrawalOpts Withdrawal Parameters. Either withdrawalOpts.withdrawal_public_key, withdrawalOpts.withdrawal_key_id or withdrawalOpts.withdrawal_key_wallet must be specified.
+   * @param  {String} [withdrawalOpts.withdrawal_key_id=<keyId>] The keyID of the Withdrawal key.
+   * @param  {String} [withdrawalOpts.withdrawal_key_wallet=<walletId>] The wallet ID where the withdrawal key is stored.
+   * @param  {String} [withdrawalOpts.withdrawal_public_key=null] The public key of the withdrawal key. Overrides withdrawal_key_wallet and withdrawal_key_id.
+   * @return {Object|String}     Either an object containing the depoosit fields, or the raw TX data string.
+   */
+  async depositData(walletId, keyId, password, withdrawalOpts ) {
+    let fields = ['withdrawal_key_wallet', 'withdrawal_key_id', 'withdrawal_public_key'];
+    let hasOpt = fields.some(f => _.has(withdrawalOpts, f));
+    if(!hasOpt) throw new Error(`Options must include One of: ${fields.toString()}`);
     let defaults = { withdrawal_key_id: keyId, withdrawal_key_wallet: walletId, withdrawal_public_key: null, amount: DEPOSIT_AMOUNT, raw: true };
-    opts = {...defaults, ...opts };
+    let opts = {...defaults, ...withdrawalOpts };
     try {
       let validatorKey = await this.keySearch(keyId, walletId);
       let validatorPubKey = validatorKey.public_key;
@@ -300,6 +314,11 @@ export class Wallet {
     catch(error) { throw error; }
   }
 
+  /**
+   * Check if a wallet exists.
+   * @param  {String}  walletId The wallet ID to search for.
+   * @return {Boolean}          True if the wallet exists, false otherwise.
+   */
   async walletExists(walletId) {
     try {
       await fs.promises.access(`${this.walletPath}/${walletId}`);

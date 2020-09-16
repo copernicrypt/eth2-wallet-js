@@ -49,6 +49,10 @@ describe('Wallet', () => {
       await expect(keystore.depositData(walletMock.wallet_list[0], keyId, TEST_PASSWORD_WRONG, { withdrawal_public_key: walletMock.key_list[1].public_key}))
         .rejects.toMatchObject(expect.any(Object));
     });
+    it('should throw if withdrawal opts are not specified', async () => {
+      await expect(keystore.depositData(walletMock.wallet_list[0], keyId, TEST_PASSWORD))
+        .rejects.toMatchObject(expect.any(Error));
+    });
   });
 
   describe('keyCreate', () => {
