@@ -38,15 +38,15 @@ describe('Wallet', () => {
       await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, keyId);
     });
     it('should return valid deposit data', async () => {
-      let data = await keystore.depositData(walletMock.wallet_list[0], keyId, TEST_PASSWORD, { raw: false, withdraw_public_key: walletMock.key_list[1].public_key});
+      let data = await keystore.depositData(walletMock.wallet_list[0], keyId, TEST_PASSWORD, { raw: false, withdrawal_public_key: walletMock.key_list[1].public_key});
       expect(data).toEqual(walletMock.deposit_data);
     });
     it('should return valid raw data', async () => {
-      let data = await keystore.depositData(walletMock.wallet_list[0], keyId, TEST_PASSWORD, { withdraw_public_key: walletMock.key_list[1].public_key});
+      let data = await keystore.depositData(walletMock.wallet_list[0], keyId, TEST_PASSWORD, { withdrawal_public_key: walletMock.key_list[1].public_key});
       expect(data).toEqual(walletMock.deposit_data_raw);
     });
     it('should throw with incorrect password', async () => {
-      await expect(keystore.depositData(walletMock.wallet_list[0], keyId, TEST_PASSWORD_WRONG, { withdraw_public_key: walletMock.key_list[1].public_key}))
+      await expect(keystore.depositData(walletMock.wallet_list[0], keyId, TEST_PASSWORD_WRONG, { withdrawal_public_key: walletMock.key_list[1].public_key}))
         .rejects.toMatchObject(expect.any(Object));
     });
   });
