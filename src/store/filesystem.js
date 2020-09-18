@@ -1,6 +1,7 @@
 import _ from 'lodash';
 import fs from 'fs';
 import  { v4 as uuidv4 } from 'uuid';
+import PQueue from 'p-queue';
 import * as types from '../types';
 const HOMEDIR = require('os').homedir();
 
@@ -15,6 +16,7 @@ export class Filesystem {
 
     this.rootPath = opts.path;
     this.keyType = opts.keyType;
+    this.indexQueue = new PQueue({ concurrency: 1 });
   }
 
   /**
@@ -148,6 +150,10 @@ export class Filesystem {
     catch(error) { return false; }
   }
 
+  async indexUpdate(keyId, publicKey=null, remove=false, path=null) {
+    return this.indexQueue.add(() => this.indexUpdateAsync(keyId, publicKey, remove, path));
+  }
+
   /**
    * Modifies a wallet index file. Either adds or removes a key. Creates new index if one doesn't exist.
    * @param  {String}  walletId         The wallet file to modify
@@ -156,7 +162,7 @@ export class Filesystem {
    * @return {Boolean}                  True on sucess
    * @throws On failure
    */
-  async indexUpdate(keyId, publicKey=null, remove=false, path=null) {
+  async indexUpdateAsync(keyId, publicKey=null, remove=false, path=null) {
     try {
       let indexExists = await this.indexExists(path);
       if(!indexExists) await this.indexCreate(path);

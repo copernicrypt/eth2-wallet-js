@@ -6,7 +6,6 @@ import crypto from 'crypto';
 import bls from 'bls-eth-wasm';
 import { ethers } from "ethers";
 import  { v4 as uuidv4 } from 'uuid';
-import PQueue from 'p-queue';
 import * as types from './types';
 import * as utils from './utils';
 import { getKey } from './key/index';
@@ -33,7 +32,6 @@ export class Wallet {
     }
     opts = { ...defaults, ...opts };
     this.version = VERSION;
-    this.queue = new PQueue({ concurrency: 1 });
     this.algorithm = opts.algorithm;
     this.forkVersion = opts.fork_version;
     this.key = getKey(this.algorithm);
@@ -108,10 +106,6 @@ export class Wallet {
     catch(error) { throw error; }
   }
 
-  async keyCreate(walletId, password, accountId=uuidv4()) {
-    return this.queue.add(() => this.keyCreateAsync(walletId, password, accountId));
-  }
-
   /**
    * Creates a new ETH2 keypair.
    * @param  {String} wallet_id The name of the wallet to create an key in.
@@ -120,13 +114,13 @@ export class Wallet {
    * @return {Object} An object containing the wallet_id, key_id and public_key.
    * @throws On failure
    */
-  async keyCreateAsync(walletId, password, keyId=uuidv4()) {
+  async keyCreate(walletId, password, keyId=uuidv4()) {
     try {
       const sec = new bls.SecretKey()
       sec.setByCSPRNG();
       const pub = sec.getPublicKey();
       let privateKeyHex = bls.toHexStr(sec.serialize());
-      return await this.keyImportAsync(walletId, privateKeyHex, password, keyId);
+      return await this.keyImport(walletId, privateKeyHex, password, keyId);
     }
     catch(error) { throw error; }
   }
@@ -148,10 +142,6 @@ export class Wallet {
     catch(error) { throw error; }
   }
 
-  async keyImport(walletId, privateKey, password, keyId=uuidv4()) {
-    return this.queue.add(() => this.keyImportAsync(walletId, privateKey, password, keyId));
-  }
-
   /**
    * Import a private key into the keystore
    * @param  {String}  walletId The wallet to import into.
@@ -161,7 +151,7 @@ export class Wallet {
    * @return {Object}  An object containing the walletId <string> key ID <UUID> and public key <48-byte HEX>
    * @throws On failure
    */
-  async keyImportAsync(walletId, privateKey, password, keyId=uuidv4()) {
+  async keyImport(walletId, privateKey, password, keyId=uuidv4()) {
     try {
       const sec = bls.deserializeHexStrToSecretKey(privateKey);
       const pub = sec.getPublicKey();
@@ -201,6 +191,10 @@ export class Wallet {
       return await this.key.decrypt(key.key_object, password);
     }
     catch(error) { throw error; }
+  }
+
+  async keySearch(search, walletId) {
+    return this.store.keySearch(search, walletId);
   }
 
   /**

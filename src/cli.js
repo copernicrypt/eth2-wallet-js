@@ -77,6 +77,20 @@ program
 });
 
 program
+  .command('keyList')
+  .description('lists all available keys for a wallet')
+  .requiredOption('-w, --wallet <wallet>', 'The wallet ID')
+  .action(async(cmdObj) => {
+    try {
+      await WALLET.init();
+      let list = await WALLET.keyList(cmdObj.wallet);
+      console.log(list);
+    }
+    catch(error) { console.error(`Error: ${error.message}`); }
+});
+
+
+program
   .command('keyPrivate')
   .description('returns a private key HEX')
   .requiredOption('-w, --wallet <wallet>', 'The wallet ID')
@@ -158,19 +172,6 @@ program
     try {
       await WALLET.init();
       let list = await WALLET.walletList();
-      console.log(list);
-    }
-    catch(error) { console.error(`Error: ${error.message}`); }
-});
-
-program
-  .command('walletListKeys')
-  .description('lists all available keys for a wallet')
-  .requiredOption('-w, --wallet <wallet>', 'The wallet ID')
-  .action(async(cmdObj) => {
-    try {
-      await WALLET.init();
-      let list = await WALLET.walletListKeys(cmdObj.wallet);
       console.log(list);
     }
     catch(error) { console.error(`Error: ${error.message}`); }
