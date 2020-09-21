@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import { Command } from 'commander';
@@ -144,10 +145,12 @@ program
     try {
       await WALLET.init();
       let params = { type: cmdObj.type }
-      if(params.type !== 1 || params.type !== 2) console.error(`Wallet type '${params.type}' not supported`);
-      if(!_.isNil(cmdObj.wallet)) params.wallet_id = cmdObj.wallet;
-      let walletId = await WALLET.walletCreate( params );
-      console.log(`Created wallet: ${walletId}`);
+      if(params.type !== 1 && params.type !== 2) console.error(`Wallet type '${params.type}' not supported`);
+      else {
+        if(!_.isNil(cmdObj.wallet)) params.wallet_id = cmdObj.wallet;
+        let walletId = await WALLET.walletCreate( params );
+        console.log(`Created wallet: ${walletId}`);
+      }
     }
     catch(error) { console.error(`Error: ${error.message}`); }
 });
