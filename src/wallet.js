@@ -156,7 +156,7 @@ export class Wallet {
       const sec = bls.deserializeHexStrToSecretKey(privateKey);
       const pub = sec.getPublicKey();
       const pubKeyHex = bls.toHexStr(pub.serialize());
-      let saveData = await this.key.encrypt(privateKey, password, pubKeyHex, { key_id: keyId });
+      let saveData = await this.key.encrypt(privateKey, password, pubKeyHex, { keyId: keyId });
       await this.store.keyWrite(saveData, { keyId: keyId, publicKey: pubKeyHex, path: walletId } );
 
       return {
@@ -193,6 +193,12 @@ export class Wallet {
     catch(error) { throw error; }
   }
 
+  /**
+   * Finds a key in the store.
+   * @param  {String}  search   The keyId or public key to search for.
+   * @param  {String}  walletId The wallet storing the key.
+   * @return {Object}           The key object.
+   */
   async keySearch(search, walletId) {
     return this.store.keySearch(search, walletId);
   }

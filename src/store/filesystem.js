@@ -174,11 +174,10 @@ export class Filesystem {
       let indexSearch = (publicKey === null) ? keyId : publicKey;
       let keyExists = await this.keyExists(indexSearch, path);
 
-      if(remove == true && keyExists) _.remove(indexData.key_list, function(o) { o.key_id == keyId });
+      if(remove == true && keyExists) _.remove(indexData.key_list, function(o) { o.key_id == keyId || o.uuid == keyId });
       else if( remove == false && !keyExists) indexData.key_list.push({ key_id: keyId, public_key: publicKey });
       else if(remove == true && !keyExists) throw new Error(`Key not found: ${keyId}.`)
       else if(remove == false && keyExists) throw new Error(`Duplicate key found: ${publicKey}.`)
-
       await fs.promises.writeFile(indexPath, JSON.stringify(indexData));
       return true;
     }

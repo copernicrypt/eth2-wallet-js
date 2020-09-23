@@ -28,8 +28,8 @@ export class Eip2335 {
 
   async encrypt(privateKey, password, publicKey, opts={}) {
     // key_id needs to be a valid UUID for use in this spec. If it isn't create a new one.
-    if(!types.UUID.test(opts.key_id)) delete opts.key_id;
-    let defaults = { path: "", key_id: uuidv4(), description: 'eth2-wallet-js key' }
+    if(!types.UUID.test(opts.keyId)) delete opts.keyId;
+    let defaults = { path: "", keyId: uuidv4(), description: 'eth2-wallet-js key' }
     opts = {...defaults, ...opts };
     const iv = crypto.randomBytes(16);
     const salt = crypto.randomBytes(32).toString('hex');
@@ -51,7 +51,7 @@ export class Eip2335 {
       description: opts.description,
       "pubkey": publicKey,
       "path": opts.path,
-      "uuid": opts.key_id,
+      "uuid": opts.keyId,
       "version": this.version,
     }
   }

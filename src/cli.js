@@ -23,10 +23,10 @@ program
   .action(async(cmdObj) => {
     try {
       await WALLET.init();
-      let opts = { withdraw_key_id: cmdObj.key, withdraw_key_wallet: cmdObj.wallet, withdraw_public_key: cmdObj.withdrawalpublickey, raw: cmdObj.raw, amount: cmdObj.amount };
+      let opts = { withdrawal_key_id: cmdObj.key, withdrawal_key_wallet: cmdObj.wallet, withdrawal_public_key: cmdObj.withdrawalpublickey, raw: cmdObj.raw, amount: cmdObj.amount };
       if(_.isNil(cmdObj.withdrawalpublickey)) {
-        if(!_.isNil(cmdObj.withdrawalwallet)) opts.withdraw_key_wallet = cmdObj.withdrawalwallet;
-        if(!_.isNil(cmdObj.withdrawalkey)) opts.withdraw_key_id = cmdObj.withdrawalkey;
+        if(!_.isNil(cmdObj.withdrawalwallet)) opts.withdrawal_key_wallet = cmdObj.withdrawalwallet;
+        if(!_.isNil(cmdObj.withdrawalkey)) opts.withdrawal_key_id = cmdObj.withdrawalkey;
       }
       console.log(await WALLET.depositData(cmdObj.wallet, cmdObj.key, cmdObj.password, opts));
     }
@@ -108,9 +108,9 @@ program
 
 program
   .command('keySearch')
-  .description('finds a key in a wallet based on keyId, publicKey or privateKey')
+  .description('finds a key in a wallet based on keyId, publicKey')
   .requiredOption('-w, --wallet <wallet>', 'The wallet ID')
-  .requiredOption('-s, --search <search>', 'The key to search for. KeyId, publicKey or privateKey')
+  .requiredOption('-s, --search <search>', 'The key to search for. KeyId, publicKey')
   .action(async(cmdObj) => {
     try {
       await WALLET.init();
@@ -125,13 +125,13 @@ program
   .description('signs a generic message')
   .requiredOption('-m, --message <message>', 'The message to sign (32-byte HEX)')
   .requiredOption('-w, --wallet <wallet>', 'The wallet ID')
-  .requiredOption('-s, --search <search>', 'The key to search for. Accepts keyId, publicKey and privateKey')
+  .requiredOption('-s, --search <search>', 'The key to search for. Accepts keyId, publicKey')
   .requiredOption('-p, --password <password>', 'The password protecting the key.')
   .action(async(cmdObj) => {
     try {
       await WALLET.init();
-      let result = WALLET.sign(cmdObj.message, cmdObj.wallet, cmdObj.search, cmdObj.password);
-      console.log(result);
+      let result = await WALLET.sign(cmdObj.message, cmdObj.wallet, cmdObj.search, cmdObj.password);
+      console.log(Buffer.from(result).toString('hex'));
     }
     catch(error) { console.error(`Error: ${error.message}`); }
 });
