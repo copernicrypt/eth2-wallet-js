@@ -271,15 +271,26 @@ Return a list of available wallet IDs
 **Throws**: On failure
 
 ### Custom Store
-Description coming soon...
+Standard Javascript Class. See examples in `src/store`.
+
+#### Specifications
+-   Implements:
+    -   `indexCreate([path=null]) returns Object`
+    -   `indexExists([path=null]) returns Boolean`
+    -   `keyDelete(<search>, [path=null]) returns Boolean | throws`
+    -   `keyList([path=null]) returns Array | throws`
+    -   `keySearch(<search>, [path=null]) returns { key_id, public_key, key_object } | throws`
+    -   `keyWrite(<keyData>, [opts={ keyId, publicKey, path }]) returns Boolean | throws`
+    -   `pathDelete([path=null]) returns Boolean | throws`
+    -   `pathList([path=null]) returns Array | throws`
 
 ### Custom Key
 Standard Javascript Class. See examples in `src/key`.
 
 #### Specifications
 -   JSON formatted
--   Properties: One of \[key_id\] or \[uuid\]
--   constructor(<algorithm>, <version>)
+-   Properties: One of `key_id` or `uuid`
+-   `constructor(<algorithm>, <version>)`
     -   **algorithm**: Encryption algorithm protecting the key.
     -   **version**: Key version
 -   Implements `encrypt` and `decrypt` functions

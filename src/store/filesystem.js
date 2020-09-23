@@ -103,7 +103,8 @@ export class Filesystem {
    * @param  {String}  [opts.keyId=UUID]       The key ID.
    * @param  {String}  [opts.publicKey=null]   48-Byte HEX public key
    * @param  {String}  [opts.path=null] Optional subpath.
-   * @return {Promise}             [description]
+   * @return {Boolean} True on Success.
+   * @throws On failure.
    */
   async keyWrite(keyData, opts={}) {
     let defaults = { keyId: uuidv4(), publicKey: null, path: null };
@@ -195,6 +196,12 @@ export class Filesystem {
     return (subpath !== null) ? `${this.rootPath}/${subpath}/${filename}` : `${this.rootPath}/${filename}`;
   }
 
+  /**
+   * Deletes all keys/indexes in a path
+   * @param  {String}  path The Path to delete
+   * @return {Boolean}      True if successful
+   * @throws On failure
+   */
   async pathDelete(path) {
     try {
       await fs.promises.rmdir(this.pathGet(path), { recursive: true });
@@ -208,10 +215,10 @@ export class Filesystem {
    * @return {Array} A list of wallet IDs.
    * @throws On failure
    */
-  async pathList(subpath=null) {
+  async pathList(path=null) {
     try {
       // get all the files and directories
-      let list = await fs.promises.readdir(this.pathGet(null, subpath), { withFileTypes: true });
+      let list = await fs.promises.readdir(this.pathGet(null, path), { withFileTypes: true });
       // filter out files and hidden folders
       let dirList = list.filter(dirent => dirent.isDirectory())
         .map(dirent => dirent.name)
