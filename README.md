@@ -321,7 +321,7 @@ yarn run cli <command> [...args]
 Imports a private key into a wallet.
 
 ```shell
-$ yarn run cli keyImport --wallet=primary --password=testpassword --key=testaccountID
+$ yarn run cli keyCreate --wallet=primary --password=testpassword --key=testaccountID
 {
   wallet_id: "primary",
   public_key: "b6de3f6dd56a863f69bca81af4dc9877d04a81df361bbe555d6944b9d84fce18fdfb939d9ef3c312ead638b759b207c9",
@@ -353,7 +353,7 @@ $ yarn run cli keyImport --wallet=primary --privatekey=1e16b2c1947fd9fd4045a8817
 Lists all keys for a given wallet.
 
 ```shell
-$ yarn run cli walletListKeys --wallet=test
+$ yarn run cli keyList --wallet=test
 [
   'test',
   'test2'
