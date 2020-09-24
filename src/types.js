@@ -4,8 +4,9 @@ export const UUID = new RegExp("^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9
 export const DEPOSIT_DATA = new RegExp("^(0x)?[0-9a-f]{840}$");
 export const SIGNATURE = new RegExp("^(0x)?[0-9a-f]{192}$");
 export const ANY = new RegExp(".*");
-export const WALLET = { SIMPLE: 1, HD: 2 };
+export const KEY = { SIMPLE: 1, HD: 2 };
 export const KEYSTORE = { ETHDO: 1 };
+export const DATA_ROOT = new RegExp("^(0x)?[0-9a-f]{64}$");
 
 export const hexNormalize = (hex, prefix=false) => {
   let newHex = hex.replace(/0x/g, '');
