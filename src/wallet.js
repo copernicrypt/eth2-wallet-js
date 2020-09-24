@@ -36,8 +36,6 @@ export class Wallet {
     this.version = VERSION;
     this.algorithm = opts.algorithm;
     this.forkVersion = opts.fork_version;
-    this.key = getKey(this.algorithm);
-    this.store = getStore(opts.wallet_path);
     this.key = (opts.key === null) ? getKey(this.algorithm) : opts.key;
     this.store = (opts.store === null) ? getStore(opts.wallet_path) : opts.store;
   }
