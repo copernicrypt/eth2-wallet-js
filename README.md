@@ -1,4 +1,5 @@
 # eth2-wallet-js
+![Release](https://img.shields.io/github/v/release/copernicrypt/eth2-wallet-js?include_prereleases)
 ![License](https://img.shields.io/github/license/copernicrypt/eth2-wallet-js?style=flat) ![Unit Tests](https://github.com/copernicrypt/eth2-wallet-js/workflows/Tests/badge.svg)
 
 VanillaJS implementation of an Ethereum 2 Wallet keystore.
@@ -61,13 +62,22 @@ let key = await w.keyCreate(wallet, 'mypassword');
 ```
 
 ### Instance Options
+See [Custom Key](#custom-key) and [Custom Store](#custom-store) documentation on writing your own key/store implementations.
+
 ```javascript
 import { Wallet } from 'eth2-wallet-js';
+import { CustomStore } from 'custom-store';
+import { CustomKey } from 'custom-key';
+
+const cStore = new CustomStore();
+const cKey = new CustomKey();
 
 let opts = {
   algorithm: 'aes-256-cbc',
   wallet_path: '~/.eth2-wallet-js/wallet',
-  fork_version: Buffer.from('00000001','hex')
+  fork_version: Buffer.from('00000001','hex'),
+  store: cStore,
+  key: cKey
 }
 
 let w = new Wallet(opts);
