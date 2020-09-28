@@ -29,7 +29,7 @@ VanillaJS implementation of an Ethereum 2 Wallet keystore.
 ## Dependencies
 -   [Nodejs](https://nodejs.org/en/download/) >= 12.0.0
 
-## Install-   [Functions](#functions)
+## Install
 
 ### NodeJS Module
 ```shell
