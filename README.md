@@ -25,6 +25,7 @@ VanillaJS implementation of an Ethereum 2 Wallet keystore.
 -   Use as [Module](#functions) and/or [CLI](#cli-usage)
 -   [EIP-2335]((https://github.com/ethereum/EIPs/blob/master/EIPS/eip-2335.md)) compatible.
 -   Supports Customizable [Store](#custom-store) and [Key](#custom-key) implementations. Write your own Storage or Key classes.
+-   Default Storage in `~/.eth2-wallet-js`
 
 ## Dependencies
 -   [Nodejs](https://nodejs.org/en/download/) >= 12.0.0
