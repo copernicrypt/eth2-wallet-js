@@ -4,27 +4,27 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 var _ = require('lodash');
 var crypto = require('crypto');
-var fs = require('fs');
 var bls = require('bls-eth-wasm');
 var ethers = require('ethers');
 var uuid = require('uuid');
-var PQueue = require('p-queue');
 var bigintBuffer = require('bigint-buffer');
 var mainnet = require('@chainsafe/lodestar-types/lib/ssz/presets/mainnet');
 var util = require('util');
+var fs = require('fs');
+var PQueue = require('p-queue');
 
 function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
 var ___default = /*#__PURE__*/_interopDefaultLegacy(_);
 var crypto__default = /*#__PURE__*/_interopDefaultLegacy(crypto);
-var fs__default = /*#__PURE__*/_interopDefaultLegacy(fs);
 var bls__default = /*#__PURE__*/_interopDefaultLegacy(bls);
-var PQueue__default = /*#__PURE__*/_interopDefaultLegacy(PQueue);
 var util__default = /*#__PURE__*/_interopDefaultLegacy(util);
+var fs__default = /*#__PURE__*/_interopDefaultLegacy(fs);
+var PQueue__default = /*#__PURE__*/_interopDefaultLegacy(PQueue);
 
 const PUBLIC_KEY = new RegExp("^(0x)?[0-9a-f]{96}$");
-const PRIVATE_KEY = new RegExp("^(0x)?[0-9a-f]{64}$");
 const UUID = new RegExp("^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$", 'i');
+const KEY = { SIMPLE: 1, HD: 2 };
 
 /**
  * @module constants
@@ -103,8 +103,8 @@ class Eip2335 {
 
   async encrypt(privateKey, password, publicKey, opts={}) {
     // key_id needs to be a valid UUID for use in this spec. If it isn't create a new one.
-    if(!UUID.test(opts.key_id)) delete opts.key_id;
-    let defaults = { path: "", key_id: uuid.v4(), description: 'eth2-wallet-js key' };
+    if(!UUID.test(opts.keyId)) delete opts.keyId;
+    let defaults = { path: "", keyId: uuid.v4(), description: 'eth2-wallet-js key' };
     opts = {...defaults, ...opts };
     const iv = crypto__default['default'].randomBytes(16);
     const salt = crypto__default['default'].randomBytes(32).toString('hex');
@@ -126,7 +126,7 @@ class Eip2335 {
       description: opts.description,
       "pubkey": publicKey,
       "path": opts.path,
-      "uuid": opts.key_id,
+      "uuid": opts.keyId,
       "version": this.version,
     }
   }
@@ -197,7 +197,7 @@ class SimpleJson {
   }
 
   async encrypt(privateKey, password, publicKey, opts={}) {
-    let defaults = { path: "", key_id: uuid.v4() };
+    let defaults = { path: "", keyId: uuid.v4() };
     opts = {...defaults, ...opts };
     const iv = crypto__default['default'].randomBytes(16);
     const key = crypto__default['default'].createHash('sha256').update(password).digest();
@@ -205,7 +205,7 @@ class SimpleJson {
     let cipher = crypto__default['default'].createCipheriv(this.algorithm, key, iv);
     let encrypted = cipher.update(privateKey);
     encrypted = Buffer.concat([encrypted, cipher.final()]);
-    return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex'), public_key: publicKey, key_id: opts.key_id, path: opts.path };
+    return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex'), public_key: publicKey, key_id: opts.keyId, path: opts.path };
   }
 
   async decrypt(jsonKey, password) {
@@ -220,12 +220,257 @@ class SimpleJson {
   }
 }
 
-function getKeystore(algorithm, type) {
+/**
+ * Returns a Key Object
+ * @type {Function}
+ * @param {String} algorithm The encryption algorithm used to protect the key.
+ * @param {String} type The type of key [simple, eip2335].
+ */
+function getKey(algorithm, type) {
   switch(type) {
     case 'simple':
       return new SimpleJson(algorithm);
     default:
       return new Eip2335(algorithm);
+  }
+}
+
+const HOMEDIR = require('os').homedir();
+
+/**
+ * Filesystem storage system for keys.
+ * @type {Object}
+ */
+class Filesystem {
+  constructor(opts={}) {
+    let defaults = { path: `${HOMEDIR}/.eth2-wallet-js/wallet`, keyType: KEY.SIMPLE };
+    opts = {...defaults, ...opts };
+
+    this.rootPath = opts.path;
+    this.keyType = opts.keyType;
+    this.indexQueue = new PQueue__default['default']({ concurrency: 1 });
+  }
+
+  /**
+   * Deletes a key from the store.
+   * @param  {String} search       The search term. Either keyId or publicKey.
+   * @param  {String} [path=null] A subpath where the key is stored.
+   * @return {Boolean}            Returns true when delete is successful.
+   * @throws On failure.
+   */
+  async keyDelete(search, path=null) {
+    try {
+      let keyId = search;
+      if(PUBLIC_KEY.test(search)) {
+        let keyObj = await this.keySearch(search, path);
+        keyId = keyObj.key_id;
+      }
+      let indexFile = await this.indexUpdate(keyId, null, true, path);
+      let keyFile = await fs__default['default'].promises.unlink(this.pathGet(keyId, path));
+      return true;
+    }
+    catch(error) { throw error; }
+  }
+
+  /**
+   * Check whether a key already exists.
+   * @param  {String}  walletId The wallet ID.
+   * @param  {String}  keyId    The Key ID.
+   * @return {Boolean}          Whether or not the key ID already exists in the wallet.
+   * @throws On failure
+   */
+  async keyExists(search, path=null) {
+    try {
+      let indexSearch = await this.keySearch(search, path);
+      let fileSearch = await fs__default['default'].promises.access(this.pathGet(indexSearch.key_id, path));
+      return true;
+    }
+    catch(error) {
+      //console.error(error);
+      return false;
+    }
+  }
+
+  /**
+   * List of available keys in a wallet.
+   * @param  {String}  path The wallet ID to search
+   * @return {Array}   An array of key objects.
+   */
+  async keyList(path=null) {
+    try {
+      let buffer = await fs__default['default'].promises.readFile(this.pathGet('index', path));
+      let indexData = JSON.parse(buffer.toString());
+      return indexData.key_list;
+    }
+    catch(error) { throw error; }
+  }
+
+  /**
+   * Finds key information.
+   * @param  {String}  search   Either an key ID or public key.
+   * @param  {String}  path The subpath to search in. Either keyId or publicKey
+   * @return {Object}  Object containing key_id and public_key.
+   * @throws On failure
+   */
+  async keySearch(search, path=null) {
+    try {
+      let buffer = await fs__default['default'].promises.readFile(this.pathGet('index', path));
+      let index = JSON.parse(buffer.toString());
+      let searchField = (PUBLIC_KEY.test(search)) ? 'public_key' : 'key_id';
+      let keyObj = ___default['default'].find(index.key_list, { [searchField]: search });
+      //console.log(`${keyObj} -- Field: ${searchField} -- Search: ${search} -- Wallet: ${walletId}`);
+      if(___default['default'].isNil(keyObj)) throw new Error('Key not found.')
+      let key = await fs__default['default'].promises.readFile(this.pathGet(keyObj.key_id, path));
+      keyObj.key_object = JSON.parse(key);
+      return keyObj;
+      //return { key_id: keyObj.key_id, public_key: keyObj.public_key, path: path || '' }
+    }
+    catch (error) { throw error; }
+  }
+
+  /**
+   * Write a key to storage
+   * @param  {Object}  keyData   The data the store. Likely in JSON.
+   * @param  {Object} [opts={}]  Optional parameters
+   * @param  {String}  [opts.keyId=UUID]       The key ID.
+   * @param  {String}  [opts.publicKey=null]   48-Byte HEX public key
+   * @param  {String}  [opts.path=null] Optional subpath.
+   * @return {Boolean} True on Success.
+   * @throws On failure.
+   */
+  async keyWrite(keyData, opts={}) {
+    let defaults = { keyId: uuid.v4(), publicKey: null, path: null };
+    opts = {...defaults, ...opts };
+    if(await this.keyExists(opts.keyId, opts.path))
+      throw new Error('Key ID already exists.');
+    if(opts.publicKey !== null && await this.keyExists(opts.publicKey, opts.path))
+      throw new Error('Public Key already exists.');
+
+    try {
+      await this.indexUpdate(opts.keyId, opts.publicKey, false, opts.path);
+      await fs__default['default'].promises.writeFile( this.pathGet(opts.keyId, opts.path), JSON.stringify(keyData), { recursive: true } );
+      return true;
+    }
+    catch(error) { throw error; }
+  }
+
+  /**
+   * Creates a new index file.
+   * @param  {String}  [path=null] Optional subpath to create the index.
+   * @return {Object}              The Index data object.
+   */
+  async indexCreate(path=null) {
+    try {
+      let indexPath = this.pathGet('index', path);
+      await fs__default['default'].promises.mkdir(this.pathGet(path), { recursive: true });
+      const indexData = { type: this.keyType, key_list: [] };
+      await fs__default['default'].promises.writeFile(indexPath, JSON.stringify(indexData));
+      return indexData;
+    }
+    catch(error) { throw error; }
+  }
+
+  /**
+   * Determines whether an index file already exists.
+   * @param  {String}  path An optional subpath where the index is stored.
+   * @return {Boolean}      True if it exists, false otherwise.
+   */
+  async indexExists(path=null) {
+    try {
+      await fs__default['default'].promises.access(this.pathGet('index', path));
+      return true;
+    }
+    catch(error) { return false; }
+  }
+
+  async indexUpdate(keyId, publicKey=null, remove=false, path=null) {
+    return this.indexQueue.add(() => this.indexUpdateAsync(keyId, publicKey, remove, path));
+  }
+
+  /**
+   * Modifies a wallet index file. Either adds or removes a key. Creates new index if one doesn't exist.
+   * @param  {String}  walletId         The wallet file to modify
+   * @param  {String}  keyId            The key to modify
+   * @param  {Boolean} [remove=false]   Whether to remove the key
+   * @return {Boolean}                  True on sucess
+   * @throws On failure
+   */
+  async indexUpdateAsync(keyId, publicKey=null, remove=false, path=null) {
+    try {
+      let indexExists = await this.indexExists(path);
+      if(!indexExists) await this.indexCreate(path);
+      let indexPath = this.pathGet('index', path);
+
+      let buffer = await fs__default['default'].promises.readFile(indexPath);
+      let indexData = JSON.parse(buffer.toString());
+      // check for existing keys
+      let indexSearch = (publicKey === null) ? keyId : publicKey;
+      let keyExists = await this.keyExists(indexSearch, path);
+
+      if(remove == true && keyExists) ___default['default'].remove(indexData.key_list, function(o) { o.key_id == keyId || o.uuid == keyId; });
+      else if( remove == false && !keyExists) indexData.key_list.push({ key_id: keyId, public_key: publicKey });
+      else if(remove == true && !keyExists) throw new Error(`Key not found: ${keyId}.`)
+      else if(remove == false && keyExists) throw new Error(`Duplicate key found: ${publicKey}.`)
+      await fs__default['default'].promises.writeFile(indexPath, JSON.stringify(indexData));
+      return true;
+    }
+    catch(error) { throw error; }
+  }
+
+  /**
+   * Gets an absolute path for writing a file
+   * @param  {String} filename       Filename to write
+   * @param  {String} [subpath=null] Optional subpath
+   * @return {String}                The absolute path for a target file.
+   */
+  pathGet(filename, subpath=null) {
+    filename = (filename !== null) ? filename: '';
+    return (subpath !== null) ? `${this.rootPath}/${subpath}/${filename}` : `${this.rootPath}/${filename}`;
+  }
+
+  /**
+   * Deletes all keys/indexes in a path
+   * @param  {String}  path The Path to delete
+   * @return {Boolean}      True if successful
+   * @throws On failure
+   */
+  async pathDelete(path) {
+    try {
+      await fs__default['default'].promises.rmdir(this.pathGet(path), { recursive: true });
+      return true;
+    }
+    catch(error) { throw error; }
+  }
+
+  /**
+   * Return a list of available wallet IDs
+   * @return {Array} A list of wallet IDs.
+   * @throws On failure
+   */
+  async pathList(path=null) {
+    try {
+      // get all the files and directories
+      let list = await fs__default['default'].promises.readdir(this.pathGet(null, path), { withFileTypes: true });
+      // filter out files and hidden folders
+      let dirList = list.filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name)
+        .filter(item => !(/(^|\/)\.[^\/\.]/g).test(item));
+      return dirList;
+    }
+    catch(error) { throw error; }
+  }
+}
+
+/**
+ * Returns a Key Object
+ * @type {Function}
+ * @param {String} algorithm The encryption algorithm used to protect the key.
+ * @param {String} type The type of key [simple, eip2335].
+ */
+function getStore(rootPath, type=1) {
+  switch(type) {
+    default:
+      return new Filesystem({ path: rootPath, keyType: type });
   }
 }
 
@@ -360,7 +605,7 @@ var DEPOSIT_CONTRACT = {
  * @module Wallet
  */
 const init = bls__default['default'].init(bls__default['default'].BLS12_381);
-const HOMEDIR = require('os').homedir();
+const HOMEDIR$1 = require('os').homedir();
 const VERSION$2 = 1;
 const FORK_VERSION = Buffer.from('00000001','hex');
 const BLS_WITHDRAWAL_PREFIX = Buffer.from('00', 'hex');
@@ -373,17 +618,18 @@ const DEPOSIT_AMOUNT = BigInt(32000000000);
 class Wallet {
   constructor(opts={}) {
     let defaults = {
-      wallet_path: `${HOMEDIR}/.eth2-wallet-js/wallet`,
+      wallet_path: `${HOMEDIR$1}/.eth2-wallet-js/wallet`,
       algorithm: 'aes-256-cbc',
       fork_version: FORK_VERSION,
+      key: null,
+      store: null
     };
     opts = { ...defaults, ...opts };
     this.version = VERSION$2;
-    this.queue = new PQueue__default['default']({ concurrency: 1 });
     this.algorithm = opts.algorithm;
-    this.walletPath = opts.wallet_path;
     this.forkVersion = opts.fork_version;
-    this.keystore = getKeystore(this.algorithm);
+    this.key = (opts.key === null) ? getKey(this.algorithm) : opts.key;
+    this.store = (opts.store === null) ? getStore(opts.wallet_path) : opts.store;
   }
 
   /**
@@ -395,16 +641,30 @@ class Wallet {
     return;
   }
 
-  async depositData(walletId, keyId, password, opts={} ) {
+  /**
+   * Gets the deposit data fields for a validator deposit on the ETH1 chain.
+   * @param  {String}  walletId  The wallet ID where the validator key is stored.
+   * @param  {String}  keyId     The key ID of the validator to generate data for.
+   * @param  {String}  password  The password of the validator key.
+   * @param  {Object} withdrawalOpts Withdrawal Parameters. Either withdrawalOpts.withdrawal_public_key, withdrawalOpts.withdrawal_key_id or withdrawalOpts.withdrawal_key_wallet must be specified.
+   * @param  {String} [withdrawalOpts.withdrawal_key_id=<keyId>] The keyID of the Withdrawal key.
+   * @param  {String} [withdrawalOpts.withdrawal_key_wallet=<walletId>] The wallet ID where the withdrawal key is stored.
+   * @param  {String} [withdrawalOpts.withdrawal_public_key=null] The public key of the withdrawal key. Overrides withdrawal_key_wallet and withdrawal_key_id.
+   * @return {Object|String}     Either an object containing the depoosit fields, or the raw TX data string.
+   */
+  async depositData(walletId, keyId, password, withdrawalOpts ) {
+    let fields = ['withdrawal_key_wallet', 'withdrawal_key_id', 'withdrawal_public_key'];
+    let hasOpt = fields.some(f => ___default['default'].has(withdrawalOpts, f));
+    if(!hasOpt) throw new Error(`Options must include One of: ${fields.toString()}`);
     let defaults = { withdrawal_key_id: keyId, withdrawal_key_wallet: walletId, withdrawal_public_key: null, amount: DEPOSIT_AMOUNT, raw: true };
-    opts = {...defaults, ...opts };
+    let opts = {...defaults, ...withdrawalOpts };
     try {
-      let validatorKey = await this.keySearch(keyId, walletId);
+      let validatorKey = await this.store.keySearch(keyId, walletId);
       let validatorPubKey = validatorKey.public_key;
       let withdrawPubKey;
       if(PUBLIC_KEY.test(opts.withdrawal_public_key)) withdrawPubKey = opts.withdrawal_public_key;
       else {
-        let withdrawKey = await this.keySearch(opts.withdrawal_key_id, opts.withdrawal_key_wallet);
+        let withdrawKey = await this.store.keySearch(opts.withdrawal_key_id, opts.withdrawal_key_wallet);
         withdrawPubKey = withdrawKey.public_key;
       }
 
@@ -440,10 +700,6 @@ class Wallet {
     catch(error) { throw error; }
   }
 
-  async keyCreate(walletId, password, accountId=uuid.v4()) {
-    return this.queue.add(() => this.keyCreateAsync(walletId, password, accountId));
-  }
-
   /**
    * Creates a new ETH2 keypair.
    * @param  {String} wallet_id The name of the wallet to create an key in.
@@ -452,13 +708,13 @@ class Wallet {
    * @return {Object} An object containing the wallet_id, key_id and public_key.
    * @throws On failure
    */
-  async keyCreateAsync(walletId, password, keyId=uuid.v4()) {
+  async keyCreate(walletId, password, keyId=uuid.v4()) {
     try {
       const sec = new bls__default['default'].SecretKey();
       sec.setByCSPRNG();
       const pub = sec.getPublicKey();
       let privateKeyHex = bls__default['default'].toHexStr(sec.serialize());
-      return await this.keyImportAsync(walletId, privateKeyHex, password, keyId);
+      return await this.keyImport(walletId, privateKeyHex, password, keyId);
     }
     catch(error) { throw error; }
   }
@@ -474,34 +730,10 @@ class Wallet {
   async keyDelete(walletId, keyId, password) {
     try {
       let key = await this.keyPrivate(walletId, keyId, password);
-      let indexFile = await this.walletIndexKey(walletId, keyId, null, true);
-      let keyFile = await fs__default['default'].promises.unlink(`${this.walletPath}/${walletId}/${keyId}`);
+      await this.store.keyDelete(keyId, walletId);
       return true;
     }
     catch(error) { throw error; }
-  }
-
-  /**
-   * Check whether a key already exists.
-   * @param  {String}  walletId The wallet ID.
-   * @param  {String}  keyId    The Key ID.
-   * @return {Boolean}          Whether or not the key ID already exists in the wallet.
-   * @throws On failure
-   */
-  async keyExists(search, walletId) {
-    try {
-      let indexSearch = await this.keySearch(search, walletId);
-      let fileSearch = await fs__default['default'].promises.access(`${this.walletPath}/${walletId}/${indexSearch.key_id}`);
-      return true;
-    }
-    catch(error) {
-      //console.error(error);
-      return false;
-    }
-  }
-
-  async keyImport(walletId, privateKey, password, keyId=uuid.v4()) {
-    return this.queue.add(() => this.keyImportAsync(walletId, privateKey, password, keyId));
   }
 
   /**
@@ -513,21 +745,13 @@ class Wallet {
    * @return {Object}  An object containing the walletId <string> key ID <UUID> and public key <48-byte HEX>
    * @throws On failure
    */
-  async keyImportAsync(walletId, privateKey, password, keyId=uuid.v4()) {
+  async keyImport(walletId, privateKey, password, keyId=uuid.v4()) {
     try {
-      if(await this.keyExists(keyId, walletId))
-        throw new Error('Key ID already exists.');
-      if(await this.keyExists(privateKey, walletId))
-          throw new Error('Private Key already exists.');
-
       const sec = bls__default['default'].deserializeHexStrToSecretKey(privateKey);
       const pub = sec.getPublicKey();
       const pubKeyHex = bls__default['default'].toHexStr(pub.serialize());
-      let saveData = await this.keystore.encrypt(privateKey, password, pubKeyHex, { key_id: keyId });
-
-      let walletFile = fs__default['default'].promises.writeFile( `${this.walletPath}/${walletId}/${keyId}`, JSON.stringify(saveData) );
-      let indexFile = this.walletIndexKey(walletId, keyId, pubKeyHex);
-      await Promise.all([walletFile, indexFile]);
+      let saveData = await this.key.encrypt(privateKey, password, pubKeyHex, { keyId: keyId });
+      await this.store.keyWrite(saveData, { keyId: keyId, publicKey: pubKeyHex, path: walletId } );
 
       return {
         wallet_id: walletId,
@@ -536,6 +760,15 @@ class Wallet {
       }
     }
     catch(error) { throw error; }
+  }
+
+  /**
+   * List of available keys in a wallet.
+   * @param  {String}  id The wallet ID to search
+   * @return {Array}   An array of key objects.
+   */
+  async keyList(walletId) {
+    return this.store.keyList(walletId);
   }
 
   /**
@@ -548,40 +781,20 @@ class Wallet {
    */
   async keyPrivate(walletId, keyId, password) {
     try {
-      let buffer = await fs__default['default'].promises.readFile(`${this.walletPath}/${walletId}/${keyId}`);
-      let text = JSON.parse(buffer.toString());
-      return await this.keystore.decrypt(text, password);
+      let key = await this.store.keySearch(keyId, walletId);
+      return await this.key.decrypt(key.key_object, password);
     }
     catch(error) { throw error; }
   }
 
   /**
-   * Finds key information.
-   * @param  {String}  search   Either an key ID or public key.
-   * @param  {String}  walletId The wallet ID to search for keys.
-   * @return {Object}  Object containing key_id and public_key.
-   * @throws On failure
+   * Finds a key in the store.
+   * @param  {String}  search   The keyId or public key to search for.
+   * @param  {String}  walletId The wallet storing the key.
+   * @return {Object}           The key object.
    */
   async keySearch(search, walletId) {
-    try {
-      let buffer = await fs__default['default'].promises.readFile(`${this.walletPath}/${walletId}/index`);
-      let index = JSON.parse(buffer.toString());
-      let searchField;
-      // Convert private key to public key for search.
-      if(PRIVATE_KEY.test(search)) {
-        const sec = bls__default['default'].deserializeHexStrToSecretKey(search);
-        const pub = sec.getPublicKey();
-        const pubKeyHex = bls__default['default'].toHexStr(pub.serialize());
-        searchField = 'public_key';
-        search = pubKeyHex;
-      }
-      else searchField = (PUBLIC_KEY.test(search)) ? 'public_key' : 'key_id';
-      let keyObj = ___default['default'].find(index.key_list, { [searchField]: search });
-      //console.log(`${keyObj} -- Field: ${searchField} -- Search: ${search} -- Wallet: ${walletId}`);
-      if(___default['default'].isNil(keyObj)) throw new Error('Key not found.')
-      return { key_id: keyObj.key_id, public_key: keyObj.public_key, wallet_id: walletId }
-    }
-    catch (error) { throw error; }
+    return this.store.keySearch(search, walletId);
   }
 
   /**
@@ -594,7 +807,7 @@ class Wallet {
    */
   async sign(message, walletId, search, password) {
     try {
-      let keyObject = await this.keySearch(search, walletId);
+      let keyObject = await this.store.keySearch(search, walletId);
       let secHex = await this.keyPrivate(walletId, keyObject.key_id, password);
       const sec = bls__default['default'].deserializeHexStrToSecretKey(secHex);
       const pub = sec.getPublicKey();
@@ -619,12 +832,10 @@ class Wallet {
   async walletCreate(opts={}) {
     let defaults = { wallet_id: uuid.v4(), type: 1 };
     opts = { ...defaults, ...opts };
-    let walletExists = await this.walletExists(opts.wallet_id);
+    let walletExists = await this.store.indexExists(opts.wallet_id);
     if(walletExists) throw new Error('Wallet already exists');
     try {
-      await fs__default['default'].promises.mkdir(`${this.walletPath}/${opts.wallet_id}`, { recursive: true });
-      const indexData = { type: opts.type, key_list: [] };
-      await fs__default['default'].promises.writeFile(`${this.walletPath}/${opts.wallet_id}/index`, JSON.stringify(indexData));
+      await this.store.indexCreate(opts.wallet_id);
       return opts.wallet_id;
     }
     catch(error) { throw error; }
@@ -638,22 +849,11 @@ class Wallet {
    */
   async walletDelete(walletId) {
     try {
-      let walletExists = await this.walletExists(walletId);
+      let walletExists = await this.store.indexExists(walletId);
       if(!walletExists) throw new Error('Wallet does not exist');
-      await fs__default['default'].promises.rmdir(`${this.walletPath}/${walletId}`, { recursive: true });
-      return true;
+      return this.store.pathDelete(walletId);
     }
     catch(error) { throw error; }
-  }
-
-  async walletExists(walletId) {
-    try {
-      await fs__default['default'].promises.access(`${this.walletPath}/${walletId}`);
-      return true;
-    }
-    catch(error) {
-      return false;
-    }
   }
 
   /**
@@ -662,58 +862,7 @@ class Wallet {
    * @throws On failure
    */
   async walletList() {
-    try {
-      // get all the files and directories
-      let list = await fs__default['default'].promises.readdir(`${this.walletPath}`, { withFileTypes: true });
-      // filter out files and hidden folders
-      let dirList = list.filter(dirent => dirent.isDirectory())
-        .map(dirent => dirent.name)
-        .filter(item => !(/(^|\/)\.[^\/\.]/g).test(item));
-      return dirList;
-    }
-    catch(error) { throw error; }
-  }
-
-  /**
-   * List of available keys in a wallet.
-   * @param  {String}  id The wallet ID to search
-   * @return {Array}   An array of key objects.
-   */
-  async walletListKeys(walletId) {
-    try {
-      let buffer = await fs__default['default'].promises.readFile(`${this.walletPath}/${walletId}/index`);
-      let indexData = JSON.parse(buffer.toString());
-      return indexData.key_list;
-    }
-    catch(error) { throw error; }
-  }
-
-  /**
-   * Modifies a wallet index file. Either adds or removes a key.
-   * @param  {String}  walletId         The wallet file to modify
-   * @param  {String}  keyId            The key to modify
-   * @param  {String}  [publicKey=null] 48-Byte HEX public key
-   * @param  {Boolean} [remove=false]   Whether to remove the key
-   * @return {Boolean}                  True on sucess
-   * @throws On failure
-   */
-  async walletIndexKey(walletId, keyId, publicKey=null, remove=false) {
-    try {
-      let buffer = await fs__default['default'].promises.readFile(`${this.walletPath}/${walletId}/index`);
-      let indexData = JSON.parse(buffer.toString());
-      // check for existing keys
-      let indexSearch = (publicKey === null) ? keyId : publicKey;
-      let hasKey = await this.keyExists(indexSearch, walletId);
-
-      if(remove == true && hasKey) ___default['default'].remove(indexData.key_list, function(o) { o.key_id == keyId; });
-      else if( remove == false && !hasKey) indexData.key_list.push({ key_id: keyId, public_key: publicKey });
-      else if(remove == true && !hasKey) throw new Error(`Key not found: ${keyId}.`)
-      else if(remove == false && hasKey) throw new Error(`Duplicate key found: ${publicKey}.`)
-
-      await fs__default['default'].promises.writeFile(`${this.walletPath}/${walletId}/index`, JSON.stringify(indexData));
-      return true;
-    }
-    catch(error) { throw error; }
+    return this.store.pathList();
   }
 }
 
