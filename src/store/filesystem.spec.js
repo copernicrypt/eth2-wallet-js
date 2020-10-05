@@ -1,3 +1,4 @@
+import fs from 'fs';
 import  { v4 as uuidv4 } from 'uuid';
 import { Filesystem } from './filesystem';
 import * as types from '../types';
@@ -80,6 +81,37 @@ describe('filesystem STORE', () => {
     it('throws when when using an invalid publicKey', async () => {
       await expect(store.keySearch(TESTKEY_WRONG, TESTPATH))
         .rejects.toMatchObject(expect.any(Error));
+    });
+  });
+
+  describe('pathBackup', () => {
+    let keyId = uuidv4();
+    beforeAll( async () => { await store.keyWrite(TESTKEY, { path: TESTPATH, keyId }) });
+    afterAll( async () => { await store.pathDelete(TESTPATH); });
+
+    it('should save a backup file', async () => {
+      await store.pathBackup(TESTPATH);
+      await expect(fs.promises.access(store.pathGet(`${TESTPATH}.zip`)))
+        .resolves.toBeUndefined();
+    });
+    it('should fail with a nonexistent wallet', async () => {
+      await expect(store.pathBackup('fakewallet')).
+        rejects.toMatchObject(expect.any(Error));
+    });
+  });
+
+  describe('pathRestore', () => {
+    afterAll( async () => {
+      await store.pathDelete(TESTPATH);
+      fs.promises.unlink(store.pathGet(`${TESTPATH}.zip`));
+    });
+    it('should recreate a wallet', async () => {
+      await store.pathRestore(store.pathGet(`${TESTPATH}.zip`));
+      expect(store.indexExists(TESTPATH)).resolves.toBe(true);
+    });
+    it('should fail with nonexistent file', async () => {
+      await expect(store.pathRestore(store.pathGet(`fakefile.zip`)))
+        .rejects.toMatchObject(expect.any(Object));
     });
   });
 

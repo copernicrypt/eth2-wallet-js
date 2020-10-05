@@ -2,6 +2,8 @@ import _ from 'lodash';
 import fs from 'fs';
 import  { v4 as uuidv4 } from 'uuid';
 import PQueue from 'p-queue';
+import archiver from 'archiver';
+import extract from 'extract-zip';
 import * as types from '../types';
 const HOMEDIR = require('os').homedir();
 
@@ -183,6 +185,35 @@ export class Filesystem {
       return true;
     }
     catch(error) { throw error; }
+  }
+
+  async pathBackup(path, destination=null) {
+    let walletExists = await this.indexExists(path);
+    if(!walletExists) throw new Error('Wallet does not exist.');
+    return new Promise((resolve, reject) => {
+      // create a file to stream archive data to.
+      const output = fs.createWriteStream( this.pathGet(`${path}.zip`) );
+      const archive = archiver('zip', {
+        zlib: { level: 9 } // Sets the compression level.
+      });
+      output.on("close", resolve);
+      archive.on("error", reject);
+      archive.directory(`${this.pathGet(path)}/`, false);
+      archive.pipe(output);
+      archive.finalize();
+    });
+  }
+
+  async pathRestore(source) {
+    try {
+        let filename = source.replace(/^.*[\\\/]/, '').split('.')[0];
+        await fs.promises.access(source);
+        await extract(source, { dir: this.pathGet(filename) });
+        console.log(`Wallet restored: ${filename}`);
+      }
+      catch (err) {
+        throw err;
+      }
   }
 
   /**
