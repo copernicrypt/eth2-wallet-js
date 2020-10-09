@@ -1,6 +1,6 @@
 {
   "name": "eth2-wallet-js",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "NodeJS implementation of an Ethereum 2 Wallet keystore.",
   "main": "bundle.js",
   "license": "MIT",
@@ -20,11 +20,13 @@
     "@chainsafe/lodestar-config": "^0.11.0",
     "@chainsafe/lodestar-types": "^0.11.0",
     "@chainsafe/ssz": "^0.6.13",
+    "archiver": "^5.0.2",
     "babel-node": "^0.0.1-security",
     "bigint-buffer": "^1.1.5",
     "bls-eth-wasm": "^0.1.8",
     "commander": "^6.1.0",
     "ethers": "^5.0.12",
+    "extract-zip": "^2.0.1",
     "lodash": "^4.17.20",
     "p-queue": "^6.6.1",
     "uuid": "^8.3.0"

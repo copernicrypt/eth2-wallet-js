@@ -137,6 +137,20 @@ program
 });
 
 program
+  .command('walletBackup')
+  .description('creates a wallet backup file')
+  .requiredOption('-w, --wallet <wallet>', 'The wallet ID')
+  .option('-d, --destination <destination>', 'The destination to save the file.', null)
+  .action(async(cmdObj) => {
+    try {
+      await WALLET.init();
+      let destination = await WALLET.walletBackup(cmdObj.wallet, cmdObj.destination);
+      console.log(`Wallet "${cmdObj.wallet}" successfully backed up to: ${destination}`);
+    }
+    catch(error) { console.error(`Error: ${error.message}`); }
+  });
+
+program
   .command('walletCreate')
   .description('creates a new wallet')
   .option('-w, --wallet <wallet>', 'The wallet ID', null)
@@ -179,5 +193,18 @@ program
     }
     catch(error) { console.error(`Error: ${error.message}`); }
 });
+
+program
+  .command('walletRestore')
+  .description('restores a wallet from file.')
+  .requiredOption('-s, --source <source>', 'The absolute path to the backup file.')
+  .action(async(cmdObj) => {
+    try {
+      await WALLET.init();
+      await WALLET.walletRestore(cmdObj.source);
+      console.log(`Wallet "${cmdObj.wallet}" successfully restored.`);
+    }
+    catch(error) { console.error(`Error: ${error.message}`); }
+  });
 
 program.parse(process.argv);

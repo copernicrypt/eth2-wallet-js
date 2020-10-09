@@ -2,6 +2,8 @@ import _ from 'lodash';
 import fs from 'fs';
 import  { v4 as uuidv4 } from 'uuid';
 import PQueue from 'p-queue';
+import archiver from 'archiver';
+import extract from 'extract-zip';
 import * as types from '../types';
 const HOMEDIR = require('os').homedir();
 
@@ -183,6 +185,49 @@ export class Filesystem {
       return true;
     }
     catch(error) { throw error; }
+  }
+
+  /**
+   * Backup a file path to ZIP
+   * @param  {String}  path               The Subpath to backup within the root wallet.
+   * @param  {String}  [destination=null] The destination to write the file to.
+   * @return {String}                    Resolves on success, returns the save path.
+   */
+  async pathBackup(path, destination=null) {
+    let walletExists = await this.indexExists(path);
+    if(!walletExists) throw new Error('Wallet does not exist.');
+    if(destination == null) destination = this.pathGet(`${path}.zip`)
+    return new Promise((resolve, reject) => {
+      // create a file to stream archive data to.
+      const output = fs.createWriteStream( destination );
+      const archive = archiver('zip', {
+        zlib: { level: 9 } // Sets the compression level.
+      });
+      output.on("close", function() { resolve(destination) });
+      archive.on("error", reject);
+      archive.directory(`${this.pathGet(path)}/`, false);
+      archive.pipe(output);
+      archive.finalize();
+    });
+  }
+
+  /**
+   * Restore a path from file.
+   * @param  {String}  source The source file absolute path.
+   * @return {Boolean}        Returns true on success.
+   * @throws On Error.
+   */
+  async pathRestore(source) {
+    try {
+        let filename = source.replace(/^.*[\\\/]/, '').split('.')[0];
+        await fs.promises.access(source);
+        await extract(source, { dir: this.pathGet(filename) });
+        //console.log(`Wallet restored: ${filename}`);
+        return true;
+      }
+      catch (err) {
+        throw err;
+      }
   }
 
   /**

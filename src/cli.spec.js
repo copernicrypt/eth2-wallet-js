@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import * as types from './types';
 import walletMock from '../__mocks__/wallet.json';
@@ -254,13 +255,45 @@ describe('CLI', () => {
     });
   });
 
-  describe('walletCreate', () => {
+  let backupPath;
+  describe('walletBackup', () => {
+    beforeEach( async () => { await cli(['walletCreate', `--wallet=${testWallet}`], '.'); });
     afterEach(async() => {
       await cli(['walletDelete', `--wallet=${testWallet}`], '.');
     });
+    it('returns a success message.', async () => {
+      let result = await cli(['walletBackup', `--wallet=${testWallet}`], '.');
+      expect(result.stdout.includes(`successfully backed up`)).toBe(true);
+      backupPath = result.stdout.split(': ')[1].trim();
+    });
+    it('fails with nonexistent wallet', async () => {
+      let result = await cli(['walletBackup', `--wallet=fakewallet`], '.');
+      expect(result.stderr.includes(`Wallet does not exist`)).toBe(true);
+    });
+  });
+
+  describe('walletRestore', () => {
+    afterAll(async () => {
+      await fs.promises.unlink(backupPath);
+      await cli(['walletDelete', `--wallet=${testWallet}`], '.');
+    });
+    it('should recreate a wallet', async () => {
+      let result = await cli(['walletRestore', `--source=${backupPath}`], '.');
+      expect(result.stdout.includes('successfully restored')).toBe(true);
+    });
+    it('should fail with nonexistent file', async () => {
+      let result = await cli(['walletRestore', `--source=/home/badpath/fake.zip`], '.');
+      expect(result.stderr.includes('no such file')).toBe(true);
+    });
+  });
+
+  describe('walletCreate', () => {
+    afterEach(async() => {
+      await cli(['walletDelete', `--wallet=${testWallet2}`], '.');
+    });
     it('returns a successful message', async () => {
-      let result = await cli(['walletCreate', `--wallet=${testWallet}`], '.');
-      expect(result.stdout.includes(`Created wallet: ${testWallet}`)).toBe(true);
+      let result = await cli(['walletCreate', `--wallet=${testWallet2}`], '.');
+      expect(result.stdout.includes(`Created wallet: ${testWallet2}`)).toBe(true);
     });
     it('returns a random UUID when no wallet ID specified', async () => {
       let result = await cli(['walletCreate'], '.');
@@ -270,8 +303,8 @@ describe('CLI', () => {
       await cli(['walletDelete', `--wallet=${walletId}`], '.');
     });
     it('returns error when creating a duplicate', async() => {
-      await cli(['walletCreate', `--wallet=${testWallet}`], '.');
-      let result = await cli(['walletCreate', `--wallet=${testWallet}`], '.');
+      await cli(['walletCreate', `--wallet=${testWallet2}`], '.');
+      let result = await cli(['walletCreate', `--wallet=${testWallet2}`], '.');
       expect(result.stderr.includes(`Wallet already exists`)).toBe(true);
     });
     it('returns error when using an invalid type', async() => {
