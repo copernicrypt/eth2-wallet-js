@@ -228,6 +228,26 @@ export class Wallet {
   }
 
   /**
+   * Creates a wallet backup file
+   * @param  {String}  walletId           The ID of the wallet to backup.
+   * @param  {String}  [destination=null] The destination to write the backup file.
+   * @return {Promise}                    Resolves as undefined on success.
+   */
+  async walletBackup(walletId, destination=null) {
+    return this.store.pathBackup(walletId, destination);
+  }
+
+  /**
+   * Restores a wallet from file.
+   * @param  {String}  source The absolute path of the source file.
+   * @return {Boolean}        Returns true on success.
+   * @throws On Failure.
+   */
+  async walletRestore(source) {
+    return this.store.pathRestore(source);
+  }
+
+  /**
    * Creates a new wallet to store keys.
    * @param  {Object}  [opts={}] Optional parameters.
    * @param  {String}  [opts.wallet_id=uuidv4] Wallet identifer. If not provided, will be random.

@@ -99,7 +99,10 @@ await w.init();
         * [.keyImport(walletId, privateKey, password, keyId)](#module_Wallet.Wallet+keyImport) ⇒ <code>Object</code>
         * [.keyList(id)](#module_Wallet.Wallet+keyList) ⇒ <code>Array</code>
         * [.keyPrivate(walletId, keyId, password)](#module_Wallet.Wallet+keyPrivate) ⇒ <code>String</code>
+        * [.keySearch(search, walletId)](#module_Wallet.Wallet+keySearch) ⇒ <code>Object</code>
         * [.sign(message, walletId, search, password)](#module_Wallet.Wallet+sign) ⇒ <code>Array</code>
+        * [.walletBackup(walletId, [destination])](#module_Wallet.Wallet+walletBackup) ⇒ <code>Promise</code>
+        * [.walletRestore(source)](#module_Wallet.Wallet+walletRestore) ⇒ <code>Boolean</code>
         * [.walletCreate([opts])](#module_Wallet.Wallet+walletCreate) ⇒ <code>String</code>
         * [.walletDelete(id)](#module_Wallet.Wallet+walletDelete) ⇒ <code>Boolean</code>
         * [.walletList()](#module_Wallet.Wallet+walletList) ⇒ <code>Array</code>
@@ -119,7 +122,10 @@ An implementation of ETH2 Wallet
     * [.keyImport(walletId, privateKey, password, keyId)](#module_Wallet.Wallet+keyImport) ⇒ <code>Object</code>
     * [.keyList(id)](#module_Wallet.Wallet+keyList) ⇒ <code>Array</code>
     * [.keyPrivate(walletId, keyId, password)](#module_Wallet.Wallet+keyPrivate) ⇒ <code>String</code>
+    * [.keySearch(search, walletId)](#module_Wallet.Wallet+keySearch) ⇒ <code>Object</code>
     * [.sign(message, walletId, search, password)](#module_Wallet.Wallet+sign) ⇒ <code>Array</code>
+    * [.walletBackup(walletId, [destination])](#module_Wallet.Wallet+walletBackup) ⇒ <code>Promise</code>
+    * [.walletRestore(source)](#module_Wallet.Wallet+walletRestore) ⇒ <code>Boolean</code>
     * [.walletCreate([opts])](#module_Wallet.Wallet+walletCreate) ⇒ <code>String</code>
     * [.walletDelete(id)](#module_Wallet.Wallet+walletDelete) ⇒ <code>Boolean</code>
     * [.walletList()](#module_Wallet.Wallet+walletList) ⇒ <code>Array</code>
@@ -225,6 +231,19 @@ Get a private key
 | keyId | <code>String</code> | The Key ID. |
 | password | <code>String</code> | The password protecting the key. |
 
+<a name="module_Wallet.Wallet+keySearch"></a>
+
+#### wallet.keySearch(search, walletId) ⇒ <code>Object</code>
+Finds a key in the store.
+
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
+**Returns**: <code>Object</code> - The key object.  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| search | <code>String</code> | The keyId or public key to search for. |
+| walletId | <code>String</code> | The wallet storing the key. |
+
 <a name="module_Wallet.Wallet+sign"></a>
 
 #### wallet.sign(message, walletId, search, password) ⇒ <code>Array</code>
@@ -239,6 +258,35 @@ Signs a generic message with a private key.
 | walletId | <code>String</code> | Wallet ID where the key is stored. |
 | search | <code>String</code> | The key to search for. Accepts keyID, publicKey, and privateKey. |
 | password | <code>String</code> | Password protecting the signing key. |
+
+<a name="module_Wallet.Wallet+walletBackup"></a>
+
+#### wallet.walletBackup(walletId, [destination]) ⇒ <code>Promise</code>
+Creates a wallet backup file
+
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
+**Returns**: <code>Promise</code> - Resolves as undefined on success.  
+
+| Param | Type | Default | Description |
+| --- | --- | --- | --- |
+| walletId | <code>String</code> |  | The ID of the wallet to backup. |
+| [destination] | <code>String</code> | <code></code> | The destination to write the backup file. |
+
+<a name="module_Wallet.Wallet+walletRestore"></a>
+
+#### wallet.walletRestore(source) ⇒ <code>Boolean</code>
+Restores a wallet from file.
+
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
+**Returns**: <code>Boolean</code> - Returns true on success.  
+**Throws**:
+
+- On Failure.
+
+
+| Param | Type | Description |
+| --- | --- | --- |
+| source | <code>String</code> | The absolute path of the source file. |
 
 <a name="module_Wallet.Wallet+walletCreate"></a>
 
@@ -292,8 +340,10 @@ Standard Javascript Class. See examples in `src/store`.
     -   `keyList([path=null]) returns Array | throws`
     -   `keySearch(<search>, [path=null]) returns { key_id, public_key, key_object } | throws`
     -   `keyWrite(<keyData>, [opts={ keyId, publicKey, path }]) returns Boolean | throws`
+    -   `pathBackup(<path>, [destination=null]) returns undefined | throws`
     -   `pathDelete([path=null]) returns Boolean | throws`
     -   `pathList([path=null]) returns Array | throws`
+    -   `pathRestore(<source>) returns Boolean | throws`
 
 ### Custom Key
 Standard Javascript Class. See examples in `src/key`.
@@ -387,6 +437,14 @@ Signs a generic message with a key.
 $ yarn run cli sign --message=9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08 --wallet=primary --search=key1 --password=test
 ```
 
+### walletBackup \<wallet\>\ [destination=null\]
+Backs up a wallet to file.
+
+```shell
+$ yarn run cli walletBackup --wallet=test
+Wallet "test" successfully backed up.
+```
+
 ### walletCreate \[wallet=UUID\]\[type=1\]
 Creates a new wallet.
 
@@ -396,7 +454,6 @@ Available Types: `1` (Random) or `2` (HD)
 $ yarn run cli walletCreate --wallet=test
 Created wallet: test
 ```
-
 
 ### walletDelete \<wallet\>
 Deletes a wallet.
@@ -415,6 +472,14 @@ $ yarn run cli walletList
   'test',
   'test2'
 ]
+```
+
+### walletRestore \<source\>
+Restores a wallet from file.
+
+```shell
+$ yarn run cli walletRestore --source=/user/home/test.zip
+Wallet "test" successfully restored.
 ```
 
 ### depositData \<wallet\> \<password\> \<key\> \[withdrawalwallet=\<wallet\>\] \[withdrawalkey=\<key\>\] \[withdrawalpublickey=null\] \[amount=32000000000\] \[raw=false\]
@@ -443,7 +508,7 @@ $ yarn run cli depositData --wallet=primary --password=testpassword --key=testac
 
 ## Roadmap
 -   ~Implement [EIP-2335](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-2335.md)~
--   Add Import/Export function
+-   ~Add Import/Export function~
 -   Add support for BIP-39 HD wallets
 -   Add support for password files
 

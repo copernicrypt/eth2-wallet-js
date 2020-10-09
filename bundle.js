@@ -12,6 +12,8 @@ var mainnet = require('@chainsafe/lodestar-types/lib/ssz/presets/mainnet');
 var util = require('util');
 var fs = require('fs');
 var PQueue = require('p-queue');
+var archiver = require('archiver');
+var extract = require('extract-zip');
 
 function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
@@ -21,6 +23,8 @@ var bls__default = /*#__PURE__*/_interopDefaultLegacy(bls);
 var util__default = /*#__PURE__*/_interopDefaultLegacy(util);
 var fs__default = /*#__PURE__*/_interopDefaultLegacy(fs);
 var PQueue__default = /*#__PURE__*/_interopDefaultLegacy(PQueue);
+var archiver__default = /*#__PURE__*/_interopDefaultLegacy(archiver);
+var extract__default = /*#__PURE__*/_interopDefaultLegacy(extract);
 
 const PUBLIC_KEY = new RegExp("^(0x)?[0-9a-f]{96}$");
 const UUID = new RegExp("^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$", 'i');
@@ -415,6 +419,49 @@ class Filesystem {
       return true;
     }
     catch(error) { throw error; }
+  }
+
+  /**
+   * Backup a file path to ZIP
+   * @param  {String}  path               The Subpath to backup within the root wallet.
+   * @param  {String}  [destination=null] The destination to write the file to.
+   * @return {String}                    Resolves on success, returns the save path.
+   */
+  async pathBackup(path, destination=null) {
+    let walletExists = await this.indexExists(path);
+    if(!walletExists) throw new Error('Wallet does not exist.');
+    if(destination == null) destination = this.pathGet(`${path}.zip`);
+    return new Promise((resolve, reject) => {
+      // create a file to stream archive data to.
+      const output = fs__default['default'].createWriteStream( destination );
+      const archive = archiver__default['default']('zip', {
+        zlib: { level: 9 } // Sets the compression level.
+      });
+      output.on("close", function() { resolve(destination); });
+      archive.on("error", reject);
+      archive.directory(`${this.pathGet(path)}/`, false);
+      archive.pipe(output);
+      archive.finalize();
+    });
+  }
+
+  /**
+   * Restore a path from file.
+   * @param  {String}  source The source file absolute path.
+   * @return {Boolean}        Returns true on success.
+   * @throws On Error.
+   */
+  async pathRestore(source) {
+    try {
+        let filename = source.replace(/^.*[\\\/]/, '').split('.')[0];
+        await fs__default['default'].promises.access(source);
+        await extract__default['default'](source, { dir: this.pathGet(filename) });
+        //console.log(`Wallet restored: ${filename}`);
+        return true;
+      }
+      catch (err) {
+        throw err;
+      }
   }
 
   /**
@@ -817,6 +864,26 @@ class Wallet {
       return serialized;
     }
     catch(error) { throw error; }
+  }
+
+  /**
+   * Creates a wallet backup file
+   * @param  {String}  walletId           The ID of the wallet to backup.
+   * @param  {String}  [destination=null] The destination to write the backup file.
+   * @return {Promise}                    Resolves as undefined on success.
+   */
+  async walletBackup(walletId, destination=null) {
+    return this.store.pathBackup(walletId, destination);
+  }
+
+  /**
+   * Restores a wallet from file.
+   * @param  {String}  source The absolute path of the source file.
+   * @return {Boolean}        Returns true on success.
+   * @throws On Failure.
+   */
+  async walletRestore(source) {
+    return this.store.pathRestore(source);
   }
 
   /**

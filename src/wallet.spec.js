@@ -1,4 +1,5 @@
 import _ from 'lodash';
+import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { Wallet } from './wallet';
 import * as types from './types';
@@ -115,6 +116,22 @@ describe('Wallet', () => {
     });
   });
 
+  describe('keyList', () => {
+    it('returns an array of key objects', async () => {
+      await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD);
+      await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[1].private_key, TEST_PASSWORD);
+      await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[2].private_key, TEST_PASSWORD);
+      let result = await keystore.keyList(walletMock.wallet_list[0]);
+      for(let i=0; i < result.length; i++) {
+        expect(result[i]).toMatchObject(_.omit(KEY_OBJECT, 'wallet_id'));
+      }
+    });
+    it('throws when the wallet does not exist', async () => {
+      expect(keystore.keyList(walletMock.wallet_list[1]))
+        .rejects.toMatchObject(expect.any(Object));
+    });
+  });
+
   describe('keyPrivate', () => {
     it('returns a private key hex', async () => {
       let result = await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, walletMock.key_list[0].key_id);
@@ -147,6 +164,20 @@ describe('Wallet', () => {
         await expect(keystore.sign(attestMock[0].attestation_list[i].message, walletMock.wallet_list[0], keyId, TEST_PASSWORD_WRONG))
           .rejects.toMatchObject(expect.any(Object));
       }
+    });
+  });
+
+  let backupId;
+  describe('walletBackup', () => {
+    afterAll( async() => { await keystore.walletDelete(backupId); });
+    it('creates a backup file for a wallet', async () => {
+      backupId = await keystore.walletCreate();
+      await expect(keystore.walletBackup(backupId))
+        .resolves.toEqual(expect.any(String));
+    });
+    it('fails when using a nonexistent wallet', async() => {
+      await expect(keystore.walletBackup('nonexistent'))
+        .rejects.toMatchObject(expect.any(Error));
     });
   });
 
@@ -193,20 +224,18 @@ describe('Wallet', () => {
     });
   });
 
-  describe('keyList', () => {
-    it('returns an array of key objects', async () => {
-      await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD);
-      await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[1].private_key, TEST_PASSWORD);
-      await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[2].private_key, TEST_PASSWORD);
-      let result = await keystore.keyList(walletMock.wallet_list[0]);
-      for(let i=0; i < result.length; i++) {
-        expect(result[i]).toMatchObject(_.omit(KEY_OBJECT, 'wallet_id'));
-      }
+  describe('walletRestore', () => {
+    afterAll( async() => {
+      await keystore.walletDelete(backupId);
+      await fs.promises.unlink(keystore.store.pathGet(`${backupId}.zip`));
     });
-    it('throws when the wallet does not exist', async () => {
-      expect(keystore.keyList(walletMock.wallet_list[1]))
+    it('should recreate a wallet', async () => {
+      await keystore.walletRestore(keystore.store.pathGet(`${backupId}.zip`));
+      expect(keystore.store.indexExists(backupId)).resolves.toBe(true);
+    });
+    it('should fail with nonexistent file', async () => {
+      await expect(keystore.walletRestore(`/home/test/fakefile.zip`))
         .rejects.toMatchObject(expect.any(Object));
     });
   });
-
 });
