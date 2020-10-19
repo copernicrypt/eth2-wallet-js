@@ -222,7 +222,7 @@ export class Filesystem {
     try {
         let filename = source.replace(/^.*[\\\/]/, '').split('.')[0];
         await fs.promises.access(source);
-        let dir = ( wallet == null ) ? this.pathGet(filename) : wallet;
+        let dir = ( wallet == null ) ? this.pathGet(filename) : this.pathGet(wallet);
         await extract(source, { dir: dir });
         //console.log(`Wallet restored: ${filename}`);
         return true;
