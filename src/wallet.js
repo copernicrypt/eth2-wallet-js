@@ -231,7 +231,7 @@ export class Wallet {
    * Creates a wallet backup file
    * @param  {String}  walletId           The ID of the wallet to backup.
    * @param  {String}  [destination=null] The destination to write the backup file.
-   * @return {Promise}                    Resolves as undefined on success.
+  * @return {Promise}                    Resolves to save destination path on success.
    */
   async walletBackup(walletId, destination=null) {
     return this.store.pathBackup(walletId, destination);

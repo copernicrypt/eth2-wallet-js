@@ -16,7 +16,7 @@
     "node": ">=12.0.0"
   },
   "dependencies": {
-    "@babel/node": "^7.10.5",
+    "@babel/node": "^7.12.1",
     "@chainsafe/lodestar-config": "^0.11.0",
     "@chainsafe/lodestar-types": "^0.11.0",
     "@chainsafe/ssz": "^0.6.13",
@@ -25,24 +25,24 @@
     "bigint-buffer": "^1.1.5",
     "bls-eth-wasm": "^0.1.8",
     "commander": "^6.1.0",
-    "ethers": "^5.0.12",
+    "ethers": "^5.0.17",
     "extract-zip": "^2.0.1",
     "lodash": "^4.17.20",
-    "p-queue": "^6.6.1",
-    "uuid": "^8.3.0"
+    "p-queue": "^6.6.2",
+    "uuid": "^8.3.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.11.6",
-    "@babel/plugin-transform-runtime": "^7.11.5",
-    "@babel/preset-env": "^7.11.5",
-    "@rollup/plugin-commonjs": "^15.0.0",
+    "@babel/core": "^7.12.3",
+    "@babel/plugin-transform-runtime": "^7.12.1",
+    "@babel/preset-env": "^7.12.1",
+    "@rollup/plugin-commonjs": "^15.1.0",
     "@rollup/plugin-json": "^4.1.0",
     "@rollup/plugin-node-resolve": "^9.0.0",
-    "babel-jest": "^26.3.0",
-    "jest": "^26.4.2",
+    "babel-jest": "^26.5.2",
+    "jest": "^26.5.3",
     "jest-json-schema": "^2.1.0",
     "jsdoc-to-markdown": "^6.0.1",
-    "rollup": "^2.26.11"
+    "rollup": "^2.32.0"
   },
   "jest": {
     "testEnvironment": "node",
