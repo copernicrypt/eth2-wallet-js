@@ -1,6 +1,6 @@
 {
   "name": "eth2-wallet-js",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "NodeJS implementation of an Ethereum 2 Wallet keystore.",
   "main": "bundle.js",
   "license": "MIT",
