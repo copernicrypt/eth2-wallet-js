@@ -198,10 +198,11 @@ program
   .command('walletRestore')
   .description('restores a wallet from file.')
   .requiredOption('-s, --source <source>', 'The absolute path to the backup file.')
+  .option('-w, --wallet <wallet>', 'Optional wallet name to import into. Defaults to filename.', null)
   .action(async(cmdObj) => {
     try {
       await WALLET.init();
-      await WALLET.walletRestore(cmdObj.source);
+      await WALLET.walletRestore(cmdObj.source, cmdObj.wallet);
       console.log(`Wallet "${cmdObj.wallet}" successfully restored.`);
     }
     catch(error) { console.error(`Error: ${error.message}`); }

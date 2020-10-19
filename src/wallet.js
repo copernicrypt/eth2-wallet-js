@@ -240,11 +240,12 @@ export class Wallet {
   /**
    * Restores a wallet from file.
    * @param  {String}  source The absolute path of the source file.
+   * @param  {String}  [wallet=null] Optional wallet name to import into. Defaults to filename.
    * @return {Boolean}        Returns true on success.
    * @throws On Failure.
    */
-  async walletRestore(source) {
-    return this.store.pathRestore(source);
+  async walletRestore(source, wallet=null) {
+    return this.store.pathRestore(source, wallet);
   }
 
   /**

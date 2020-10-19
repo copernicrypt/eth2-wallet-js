@@ -274,19 +274,18 @@ Creates a wallet backup file
 
 <a name="module_Wallet.Wallet+walletRestore"></a>
 
-#### wallet.walletRestore(source) ⇒ <code>Boolean</code>
+#### wallet.walletRestore(source, [wallet]) ⇒ <code>Boolean</code>
 Restores a wallet from file.
 
 **Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
 **Returns**: <code>Boolean</code> - Returns true on success.  
-**Throws**:
-
-- On Failure.
+**Throws**: On Failure.
 
 
 | Param | Type | Description |
 | --- | --- | --- |
 | source | <code>String</code> | The absolute path of the source file. |
+| wallet | <code>String</code> | Optional wallet name to import into. Defaults to filename. |
 
 <a name="module_Wallet.Wallet+walletCreate"></a>
 
@@ -343,7 +342,7 @@ Standard Javascript Class. See examples in `src/store`.
     -   `pathBackup(<path>, [destination=null]) returns undefined | throws`
     -   `pathDelete([path=null]) returns Boolean | throws`
     -   `pathList([path=null]) returns Array | throws`
-    -   `pathRestore(<source>) returns Boolean | throws`
+    -   `pathRestore(<source>, [wallet]) returns Boolean | throws`
 
 ### Custom Key
 Standard Javascript Class. See examples in `src/key`.
