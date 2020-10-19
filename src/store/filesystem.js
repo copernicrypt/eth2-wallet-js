@@ -214,14 +214,16 @@ export class Filesystem {
   /**
    * Restore a path from file.
    * @param  {String}  source The source file absolute path.
+   * @param  {String}  [wallet=null] Optional wallet name.
    * @return {Boolean}        Returns true on success.
    * @throws On Error.
    */
-  async pathRestore(source) {
+  async pathRestore(source, wallet=null) {
     try {
         let filename = source.replace(/^.*[\\\/]/, '').split('.')[0];
         await fs.promises.access(source);
-        await extract(source, { dir: this.pathGet(filename) });
+        let dir = ( wallet == null ) ? this.pathGet(filename) : wallet;
+        await extract(source, { dir: dir });
         //console.log(`Wallet restored: ${filename}`);
         return true;
       }
