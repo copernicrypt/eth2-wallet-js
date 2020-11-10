@@ -125,7 +125,7 @@ export class Filesystem {
   }
 
   /**
-   * Creates a new index file.
+   * Creates a new index file.keyId
    * @param  {String}  [path=null] Optional subpath to create the index.
    * @return {Object}              The Index data object.
    */
@@ -176,8 +176,10 @@ export class Filesystem {
       // check for existing keys
       let indexSearch = (publicKey === null) ? keyId : publicKey;
       let keyExists = await this.keyExists(indexSearch, path);
-
-      if(remove == true && keyExists) _.remove(indexData.key_list, function(o) { o.key_id == keyId || o.uuid == keyId });
+      let removed;
+      if(remove == true && keyExists) removed = await _.remove(indexData.key_list, function(o) {
+        return (o.key_id == keyId || o.uuid == keyId);
+      });
       else if( remove == false && !keyExists) indexData.key_list.push({ key_id: keyId, public_key: publicKey });
       else if(remove == true && !keyExists) throw new Error(`Key not found: ${keyId}.`)
       else if(remove == false && keyExists) throw new Error(`Duplicate key found: ${publicKey}.`)

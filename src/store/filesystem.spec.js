@@ -19,11 +19,13 @@ describe('filesystem STORE', () => {
 
   describe('keyDelete', () => {
     let keyId = uuidv4();
-    beforeAll( async () => { await store.keyWrite(TESTKEY, { path: TESTPATH, keyId }) });
+    beforeAll( async () => { await store.keyWrite(TESTKEY, { path: TESTPATH, keyId: keyId }) });
     afterAll( async () => { await store.pathDelete(TESTPATH); })
-    it('should return true when key exists', async() => {
+    it('should return true when key exists and remove all traces of key', async() => {
       await expect(store.keyDelete(keyId, TESTPATH))
         .resolves.toBe(true);
+      let keyList = await store.keyList(TESTPATH);
+      expect(keyList).toEqual(expect.not.arrayContaining([keyId]));
     });
     it('should throw when key does not exist', async() => {
       await expect(store.keyDelete(uuidv4(), TESTPATH))
