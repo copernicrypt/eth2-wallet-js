@@ -359,7 +359,7 @@ class Filesystem {
   }
 
   /**
-   * Creates a new index file.
+   * Creates a new index file.keyId
    * @param  {String}  [path=null] Optional subpath to create the index.
    * @return {Object}              The Index data object.
    */
@@ -410,8 +410,10 @@ class Filesystem {
       // check for existing keys
       let indexSearch = (publicKey === null) ? keyId : publicKey;
       let keyExists = await this.keyExists(indexSearch, path);
-
-      if(remove == true && keyExists) ___default['default'].remove(indexData.key_list, function(o) { o.key_id == keyId || o.uuid == keyId; });
+      let removed;
+      if(remove == true && keyExists) removed = await ___default['default'].remove(indexData.key_list, function(o) {
+        return (o.key_id == keyId || o.uuid == keyId);
+      });
       else if( remove == false && !keyExists) indexData.key_list.push({ key_id: keyId, public_key: publicKey });
       else if(remove == true && !keyExists) throw new Error(`Key not found: ${keyId}.`)
       else if(remove == false && keyExists) throw new Error(`Duplicate key found: ${publicKey}.`)
@@ -448,14 +450,16 @@ class Filesystem {
   /**
    * Restore a path from file.
    * @param  {String}  source The source file absolute path.
+   * @param  {String}  [wallet=null] Optional wallet name.
    * @return {Boolean}        Returns true on success.
    * @throws On Error.
    */
-  async pathRestore(source) {
+  async pathRestore(source, wallet=null) {
     try {
         let filename = source.replace(/^.*[\\\/]/, '').split('.')[0];
         await fs__default['default'].promises.access(source);
-        await extract__default['default'](source, { dir: this.pathGet(filename) });
+        let dir = ( wallet == null ) ? this.pathGet(filename) : this.pathGet(wallet);
+        await extract__default['default'](source, { dir: dir });
         //console.log(`Wallet restored: ${filename}`);
         return true;
       }
@@ -870,7 +874,7 @@ class Wallet {
    * Creates a wallet backup file
    * @param  {String}  walletId           The ID of the wallet to backup.
    * @param  {String}  [destination=null] The destination to write the backup file.
-   * @return {Promise}                    Resolves as undefined on success.
+  * @return {Promise}                    Resolves to save destination path on success.
    */
   async walletBackup(walletId, destination=null) {
     return this.store.pathBackup(walletId, destination);
@@ -879,11 +883,12 @@ class Wallet {
   /**
    * Restores a wallet from file.
    * @param  {String}  source The absolute path of the source file.
+   * @param  {String}  [wallet=null] Optional wallet name to import into. Defaults to filename.
    * @return {Boolean}        Returns true on success.
    * @throws On Failure.
    */
-  async walletRestore(source) {
-    return this.store.pathRestore(source);
+  async walletRestore(source, wallet=null) {
+    return this.store.pathRestore(source, wallet);
   }
 
   /**
