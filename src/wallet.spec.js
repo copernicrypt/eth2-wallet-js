@@ -13,6 +13,7 @@ const KEY_OBJECT = {
   key_id: expect.stringMatching(types.UUID),
   public_key: expect.stringMatching(types.PUBLIC_KEY)
 }
+const TEST_MNEMONIC = 'explain fix pink title village payment sell under critic adapt zone upset';
 let walletDeleteList = [];
 
 describe('Wallet', () => {
@@ -221,6 +222,20 @@ describe('Wallet', () => {
     it('returns an array of wallet IDs', async () => {
       await expect(keystore.walletList())
         .resolves.toEqual(expect.arrayContaining(walletDeleteList));
+    });
+  });
+
+  describe('walletMnemonic', () => {
+    let walletId = uuidv4();
+    beforeAll( async () => { await keystore.walletCreate({ wallet_id: walletId, type: 2, password: TEST_PASSWORD, mnemonic: TEST_MNEMONIC }); });
+    afterAll( async() => { await keystore.walletDelete(walletId); });
+    it('returns a wallet mnemonic phrase', async () => {
+      expect(keystore.walletMnemonic(walletId, TEST_PASSWORD))
+        .resolves.toEqual(TEST_MNEMONIC);
+    });
+    it('fails with incorrect password', () => {
+      expect(keystore.walletMnemonic(walletId, TEST_PASSWORD_WRONG))
+        .rejects.toMatchObject(expect.any(Object));
     });
   });
 

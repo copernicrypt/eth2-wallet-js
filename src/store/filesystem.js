@@ -125,15 +125,15 @@ export class Filesystem {
   }
 
   /**
-   * Creates a new index file.keyId
+   * Creates a new index file.
    * @param  {String}  [path=null] Optional subpath to create the index.
    * @return {Object}              The Index data object.
    */
-  async indexCreate(path=null) {
+  async indexCreate(path=null, keyType=this.keyType) {
     try {
       let indexPath = this.pathGet('index', path);
       await fs.promises.mkdir(this.pathGet(path), { recursive: true });
-      const indexData = { type: this.keyType, key_list: [] };
+      const indexData = { type: keyType, key_list: [] };
       await fs.promises.writeFile(indexPath, JSON.stringify(indexData));
       return indexData;
     }
@@ -187,6 +187,25 @@ export class Filesystem {
       return true;
     }
     catch(error) { throw error; }
+  }
+
+  async mnemonicCreate(mnemonic, path=null) {
+    try {
+      let mnemonicPath = this.pathGet('mnemonic', path);
+      await fs.promises.writeFile(mnemonicPath, JSON.stringify(mnemonic));
+      return true;
+    }
+    catch(error) { throw error; }
+  }
+
+  /**
+   * Returns an encrypted mnemonic JSON object.
+   * @param  {String}  [path=null] Subpath within the root wallet.
+   * @return {Promise}             [description]
+   */
+  async mnemonicGet(path=null) {
+    let key = await fs.promises.readFile(this.pathGet('mnemonic', path));
+    return JSON.parse(key);
   }
 
   /**

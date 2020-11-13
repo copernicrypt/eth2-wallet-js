@@ -154,12 +154,14 @@ program
   .command('walletCreate')
   .description('creates a new wallet')
   .option('-w, --wallet <wallet>', 'The wallet ID', null)
-  .option('-t, --type <type>', 'The wallet type (1=Basic, 2=HD (not implemented))', 1)
+  .option('-t, --type <type>', 'The wallet type (1=Basic, 2=HD)', 1)
+  .option('-p, --password <password>', 'The HD wallet password.', null)
+  .option('-m, --mnemonic <mnemonic>', 'The BIP39 mnemonic phrase', null)
   .action(async(cmdObj) => {
     try {
       await WALLET.init();
-      let params = { type: cmdObj.type }
-      if(params.type !== 1 && params.type !== 2) console.error(`Wallet type '${params.type}' not supported`);
+      let params = { type: cmdObj.type, password: cmdObj.password, mnemonic: cmdObj.mnemonic }
+      if(params.type == 1 && params.type == 2) console.error(`Wallet type '${params.type}' not supported`);
       else {
         if(!_.isNil(cmdObj.wallet)) params.wallet_id = cmdObj.wallet;
         let walletId = await WALLET.walletCreate( params );
@@ -193,6 +195,20 @@ program
     }
     catch(error) { console.error(`Error: ${error.message}`); }
 });
+
+program
+  .command('walletMnemonic')
+  .description('returns the mnemonic for an HD wallet')
+  .requiredOption('-w, --wallet <wallet>', 'The wallet to search for.')
+  .requiredOption('-p, --password <password>', 'The password protecting the wallet.')
+  .action( async(cmdObj) => {
+    try {
+      await WALLET.init();
+      let mnemonic = await WALLET.walletMnemonic(cmdObj.wallet, cmdObj.password);
+      console.log(mnemonic);
+    }
+    catch(error) { console.error(`Error: ${error.message}`); }
+  });
 
 program
   .command('walletRestore')

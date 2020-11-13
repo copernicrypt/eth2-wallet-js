@@ -473,6 +473,14 @@ $ yarn run cli walletList
 ]
 ```
 
+### walletMnemonic
+Returns the mnemonic for a wallet.
+
+```shell
+$ yarn run cli walletMnemonic --wallet=test --password=test
+explain fix pink title village payment sell under critic adapt zone upset
+```
+
 ### walletRestore \<source\>
 Restores a wallet from file.
 

@@ -12,6 +12,7 @@ import { getKey } from './key/index';
 import { getStore } from './store/index';
 
 import DEPOSIT_CONTRACT from './depositContract.json';
+const bip39 = require('bip39');
 const init = bls.init(bls.BLS12_381);
 const HOMEDIR = require('os').homedir();
 const VERSION = 1;
@@ -38,6 +39,7 @@ export class Wallet {
     this.forkVersion = opts.fork_version;
     this.key = (opts.key === null) ? getKey(this.algorithm) : opts.key;
     this.store = (opts.store === null) ? getStore(opts.wallet_path) : opts.store;
+    this.mnemonic = getKey(this.algorithm, 'mnemonic');
   }
 
   /**
@@ -206,6 +208,17 @@ export class Wallet {
   }
 
   /**
+   * Parses a password file and returns the password for a key
+   * @param  {String}  file   The file destination to read.
+   * @param  {String}  wallet The wallet ID to search for.
+   * @param  {String}  key    The key ID to get password for.
+   * @return {String}         The password for this key.
+   */
+  async parsePasswordFile(file, wallet, key) {
+
+  }
+
+  /**
   * Signs a generic message with a private key.
   * @param  {String}  message   The message to sign (32-Byte HEX)
    * @param  {String}  walletId Wallet ID where the key is stored.
@@ -238,17 +251,6 @@ export class Wallet {
   }
 
   /**
-   * Restores a wallet from file.
-   * @param  {String}  source The absolute path of the source file.
-   * @param  {String}  [wallet=null] Optional wallet name to import into. Defaults to filename.
-   * @return {Boolean}        Returns true on success.
-   * @throws On Failure.
-   */
-  async walletRestore(source, wallet=null) {
-    return this.store.pathRestore(source, wallet);
-  }
-
-  /**
    * Creates a new wallet to store keys.
    * @param  {Object}  [opts={}] Optional parameters.
    * @param  {String}  [opts.wallet_id=uuidv4] Wallet identifer. If not provided, will be random.
@@ -263,8 +265,19 @@ export class Wallet {
     opts = { ...defaults, ...opts };
     let walletExists = await this.store.indexExists(opts.wallet_id);
     if(walletExists) throw new Error('Wallet already exists');
+    // HD wallet validation
+    if(opts.type == 2) {
+      if(_.isEmpty(opts.password)) throw new Error('Password required for HD wallets');
+      if(!_.isEmpty(opts.mnemonic) && opts.mnemonic.trim().split(/\s+/g).length < 12) throw new Error('Mnemonic must be at least 12 words long.')
+    }
     try {
-      await this.store.indexCreate(opts.wallet_id);
+      await this.store.indexCreate(opts.wallet_id, opts.type);
+      // Handle Mnemonic storage
+      if(opts.type == 2) {
+        let mnemonic = (_.isEmpty(opts.mnemonic)) ? await bip39.generateMnemonic(256) : opts.mnemonic;
+        let mnemonicEncrypted = await this.mnemonic.encrypt(mnemonic, opts.password);
+        await this.store.mnemonicCreate(mnemonicEncrypted, opts.wallet_id);
+      }
       return opts.wallet_id;
     }
     catch(error) { throw error; }
@@ -292,5 +305,30 @@ export class Wallet {
    */
   async walletList() {
     return this.store.pathList();
+  }
+
+  /**
+   * Returns the wallet mnemonic phrase.
+   * @param  {String}  walletId The wallet ID.
+   * @param  {String}  password The password protecting the mnemonic.
+   * @return {String}           The mnemonic phrase.
+   */
+  async walletMnemonic(walletId, password) {
+    try {
+      let mnemonicJson = await this.store.mnemonicGet(walletId);
+      return await this.mnemonic.decrypt(mnemonicJson, password);
+    }
+    catch(error) { throw error; }
+  }
+
+  /**
+   * Restores a wallet from file.
+   * @param  {String}  source The absolute path of the source file.
+   * @param  {String}  [wallet=null] Optional wallet name to import into. Defaults to filename.
+   * @return {Boolean}        Returns true on success.
+   * @throws On Failure.
+   */
+  async walletRestore(source, wallet=null) {
+    return this.store.pathRestore(source, wallet);
   }
 }
