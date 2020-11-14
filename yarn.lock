@@ -1985,6 +1985,14 @@ bcrypt-pbkdf@^1.0.0:
   dependencies:
     tweetnacl "^0.14.3"
 
+bcrypto@^5.3.0:
+  version "5.3.0"
+  resolved "https://registry.yarnpkg.com/bcrypto/-/bcrypto-5.3.0.tgz#d2d7d8a808b5efeb09fe529034a30bd772902d84"
+  integrity sha512-SP48cpoc4BkEPNOErdsZ1VjbtdXY/C0f5wAywWniLne/Fd/5oOBqLbC6ZavngLvk4oik76g4I7PO5KduJoqECQ==
+  dependencies:
+    bufio "~1.0.7"
+    loady "~0.0.5"
+
 bech32@1.1.4:
   version "1.1.4"
   resolved "https://registry.yarnpkg.com/bech32/-/bech32-1.1.4.tgz#e38c9f37bf179b8eb16ae3a772b40c356d4832e9"
@@ -2114,6 +2122,11 @@ buffer@^5.1.0, buffer@^5.4.3, buffer@^5.5.0:
   dependencies:
     base64-js "^1.3.1"
     ieee754 "^1.1.13"
+
+bufio@~1.0.7:
+  version "1.0.7"
+  resolved "https://registry.yarnpkg.com/bufio/-/bufio-1.0.7.tgz#b7f63a1369a0829ed64cc14edf0573b3e382a33e"
+  integrity sha512-bd1dDQhiC+bEbEfg56IdBv7faWa6OipMs/AFFFvtFnB3wAYjlwQpQRZ0pm6ZkgtfL0pILRXhKxOiQj6UzoMR7A==
 
 builtin-modules@^3.1.0:
   version "3.1.0"
@@ -4260,6 +4273,11 @@ linkify-it@^2.0.0:
   integrity sha512-GnAl/knGn+i1U/wjBz3akz2stz+HrHLsxMwHQGofCDfPvlf+gDKN58UtfmUquTY4/MXeE2x7k19KQmeoZi94Iw==
   dependencies:
     uc.micro "^1.0.1"
+
+loady@~0.0.5:
+  version "0.0.5"
+  resolved "https://registry.yarnpkg.com/loady/-/loady-0.0.5.tgz#b17adb52d2fb7e743f107b0928ba0b591da5d881"
+  integrity sha512-uxKD2HIj042/HBx77NBcmEPsD+hxCgAtjEWlYNScuUjIsh/62Uyu39GOR68TBR68v+jqDL9zfftCWoUo4y03sQ==
 
 locate-path@^3.0.0:
   version "3.0.0"

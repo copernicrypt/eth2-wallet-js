@@ -129,6 +129,11 @@ export class Wallet {
     catch(error) { throw error; }
   }
 
+  async keyFromMnemonic(mnemonic) {
+    const seed = await bip39.mnemonicToSeed(mnemonic);
+    const seedBuffer = Buffer.from(seed);
+  }
+
   /**
    * Removes a key from a wallet.
    * @param  {String}  walletId The wallet ID.
