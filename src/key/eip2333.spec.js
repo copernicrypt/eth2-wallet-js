@@ -1,6 +1,4 @@
-import _ from 'lodash';
 import { Eip2333 } from './eip2333';
-import * as types from '../types';
 import { bigIntToBuffer } from '../helpers';
 
 const MNEMONIC = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -35,7 +33,7 @@ const CASE3 = {
 }
 
 
-describe('EIP2333 Key Generator', () => {
+describe('EIP2333 Key Generation', () => {
   describe('deriveMasterSk', () => {
     it('produces the correct master key for case 0', async () => {
       let result = Eip2333.deriveMasterSk(CASE0.seed);
@@ -52,6 +50,10 @@ describe('EIP2333 Key Generator', () => {
     it('produces the correct master key for case 3', async () => {
       let result = Eip2333.deriveMasterSk(CASE3.seed);
       expect(BigInt(`0x${result.toString('hex')}`)).toEqual(CASE3.master_sk);
+    });
+    it('fails with insufficient seed size', async () => {
+      let seed = Buffer.from('31415926535897932384626433832795028841971693993751058209', 'hex')
+      expect(() => { Eip2333.deriveMasterSk(seed); }).toThrow();
     });
   });
 

@@ -9,10 +9,11 @@ import  { v4 as uuidv4 } from 'uuid';
 import * as types from './types';
 import * as utils from './utils';
 import { getKey } from './key/index';
+import { Eip2333 } from './key/eip2333';
 import { getStore } from './store/index';
-
 import DEPOSIT_CONTRACT from './depositContract.json';
 const bip39 = require('bip39');
+
 const init = bls.init(bls.BLS12_381);
 const HOMEDIR = require('os').homedir();
 const VERSION = 1;

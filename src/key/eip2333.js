@@ -87,6 +87,7 @@ export class Eip2333 {
    * @return {Buffer}      The secret key of master node within the tree, a big endian encoded integer.
    */
   static deriveMasterSk(seed) {
+    if( (seed.byteLength * 8) < 256) throw new Error('Seed length is too short. You need at least 256-bits.')
     return Eip2333.hkdfModR(seed);
   }
 }
