@@ -37,7 +37,7 @@ describe('Wallet', () => {
     let keyId;
     beforeEach(async () => {
       keyId = uuidv4();
-      await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, keyId);
+      await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: keyId });
     });
     it('should return valid deposit data', async () => {
       let data = await keystore.depositData(walletMock.wallet_list[0], keyId, TEST_PASSWORD, { raw: false, withdrawal_public_key: walletMock.key_list[1].public_key});
@@ -64,9 +64,9 @@ describe('Wallet', () => {
     });
     it('should not allow duplicate key IDs', async () => {
       let key_id = uuidv4();
-      await expect( keystore.keyCreate(walletMock.wallet_list[0], TEST_PASSWORD, key_id))
+      await expect( keystore.keyCreate(walletMock.wallet_list[0], TEST_PASSWORD, { keyId: key_id }))
         .resolves.toMatchObject(KEY_OBJECT);
-      await expect( keystore.keyCreate(walletMock.wallet_list[0], TEST_PASSWORD, key_id))
+      await expect( keystore.keyCreate(walletMock.wallet_list[0], TEST_PASSWORD, { keyId: key_id }))
         .rejects.toMatchObject(expect.any(Error));
     });
   });
@@ -74,7 +74,7 @@ describe('Wallet', () => {
   describe('keyDelete', () => {
     let keyId = uuidv4();
     beforeEach(async () => {
-      await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, keyId);
+      await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: keyId });
     });
     it('should return true with a correct password, keyId, and walletId', async () => {
       await expect(keystore.keyDelete(walletMock.wallet_list[0], keyId, TEST_PASSWORD))
@@ -102,17 +102,17 @@ describe('Wallet', () => {
     });
     it('should not allow duplicate key IDs', async () => {
       let key_id = uuidv4();
-      await expect( keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, key_id))
+      await expect( keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: key_id }))
         .resolves.toMatchObject(KEY_OBJECT);
-      await expect( keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, key_id))
+      await expect( keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: key_id }))
         .rejects.toMatchObject(expect.any(Error));
     });
     it('should not allow duplicate private keys', async () => {
       let key_id1 = uuidv4();
       let key_id2 = uuidv4();
-      await expect( keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, key_id1))
+      await expect( keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: key_id1 }))
         .resolves.toMatchObject(KEY_OBJECT);
-      await expect( keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, key_id2))
+      await expect( keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: key_id2 }))
         .rejects.toMatchObject(expect.any(Error));
     });
   });
@@ -135,13 +135,13 @@ describe('Wallet', () => {
 
   describe('keyPrivate', () => {
     it('returns a private key hex', async () => {
-      let result = await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, walletMock.key_list[0].key_id);
+      let result = await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: walletMock.key_list[0].key_id });
       let pk = await keystore.keyPrivate(walletMock.wallet_list[0], walletMock.key_list[0].key_id, TEST_PASSWORD);
       expect(pk).toBe(walletMock.key_list[0].private_key);
       expect(pk).toMatch(types.PRIVATE_KEY);
     });
     it('throws with incorrect password', async () => {
-      let result = await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, walletMock.key_list[0].key_id);
+      let result = await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: walletMock.key_list[0].key_id });
       await expect(keystore.keyPrivate(walletMock.wallet_list[0], walletMock.key_list[0].key_id, TEST_PASSWORD_WRONG))
         .rejects.toMatchObject(expect.any(Object));
     });
@@ -151,7 +151,7 @@ describe('Wallet', () => {
     let keyId;
     beforeEach(async () => {
       keyId = uuidv4();
-      await keystore.keyImport(walletMock.wallet_list[0], attestMock[0].private_key, TEST_PASSWORD, keyId);
+      await keystore.keyImport(walletMock.wallet_list[0], attestMock[0].private_key, TEST_PASSWORD, { keyId: keyId });
     });
     it('returns a valid and correct signature for a key', async () => {
       for(let i=0; i < attestMock[0].attestation_list.length; i++) {

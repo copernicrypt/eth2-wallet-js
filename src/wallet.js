@@ -10,6 +10,7 @@ import * as types from './types';
 import * as utils from './utils';
 import { getKey } from './key/index';
 import { Eip2333 } from './key/eip2333';
+import { deriveKey } from './key/eip2334';
 import { getStore } from './store/index';
 import DEPOSIT_CONTRACT from './depositContract.json';
 const bip39 = require('bip39');
@@ -17,7 +18,6 @@ const bip39 = require('bip39');
 const init = bls.init(bls.BLS12_381);
 const HOMEDIR = require('os').homedir();
 const VERSION = 1;
-const FORK_VERSION = Buffer.from('00000001','hex');
 const BLS_WITHDRAWAL_PREFIX = Buffer.from('00', 'hex');
 const DEPOSIT_AMOUNT = BigInt(32000000000);
 
@@ -30,14 +30,14 @@ export class Wallet {
     let defaults = {
       wallet_path: `${HOMEDIR}/.eth2-wallet-js/wallet`,
       algorithm: 'aes-256-cbc',
-      fork_version: FORK_VERSION,
+      fork_version: 'medalla',
       key: null,
       store: null
     }
     opts = { ...defaults, ...opts };
     this.version = VERSION;
     this.algorithm = opts.algorithm;
-    this.forkVersion = opts.fork_version;
+    this.forkVersion = types.FORKS[opts.fork_version];
     this.key = (opts.key === null) ? getKey(this.algorithm) : opts.key;
     this.store = (opts.store === null) ? getStore(opts.wallet_path) : opts.store;
     this.mnemonic = getKey(this.algorithm, 'mnemonic');
@@ -61,9 +61,10 @@ export class Wallet {
    * @param  {String} [withdrawalOpts.withdrawal_key_id=<keyId>] The keyID of the Withdrawal key.
    * @param  {String} [withdrawalOpts.withdrawal_key_wallet=<walletId>] The wallet ID where the withdrawal key is stored.
    * @param  {String} [withdrawalOpts.withdrawal_public_key=null] The public key of the withdrawal key. Overrides withdrawal_key_wallet and withdrawal_key_id.
+   * @param  {String} [forkVersion=null] Optionally override the Instance fork version.
    * @return {Object|String}     Either an object containing the depoosit fields, or the raw TX data string.
    */
-  async depositData(walletId, keyId, password, withdrawalOpts ) {
+  async depositData(walletId, keyId, password, withdrawalOpts, forkVersion=null ) {
     let fields = ['withdrawal_key_wallet', 'withdrawal_key_id', 'withdrawal_public_key'];
     let hasOpt = fields.some(f => _.has(withdrawalOpts, f));
     if(!hasOpt) throw new Error(`Options must include One of: ${fields.toString()}`);
@@ -87,7 +88,9 @@ export class Wallet {
           amount: opts.amount,
           signature: Buffer.alloc(96),
       };
-      let signingRoot = utils.getSigningRoot(depositData, this.forkVersion);
+      // forkVersion Override
+      const forkChoice = (types.FORKS.hasOwnProperty(forkVersion)) ? types.FORKS[forkVersion] : this.forkVersion;
+      let signingRoot = utils.getSigningRoot(depositData, forkChoice);
       depositData.signature = await this.sign(signingRoot.toString('hex'), walletId, validatorPubKey, password);
       let depositDataRoot = utils.getDepositDataRoot(depositData);
       if(opts.raw == true) {
@@ -115,24 +118,48 @@ export class Wallet {
    * Creates a new ETH2 keypair.
    * @param  {String} wallet_id The name of the wallet to create an key in.
    * @param  {String} password The password to protect the key.
-   * @param  {String} keyId=UUID] The name of the key to create.
+   * @param  {String} [opts.keyId=UUID] The name of the key to create.
+   * @param  {String} [opts.walletPassword=null] Wallet password for HD wallets.
    * @return {Object} An object containing the wallet_id, key_id and public_key.
    * @throws On failure
    */
-  async keyCreate(walletId, password, keyId=uuidv4()) {
+  async keyCreate(walletId, password, opts={}) {
     try {
-      const sec = new bls.SecretKey()
-      sec.setByCSPRNG();
-      const pub = sec.getPublicKey();
-      let privateKeyHex = bls.toHexStr(sec.serialize());
-      return await this.keyImport(walletId, privateKeyHex, password, keyId);
+      let defaults = { keyId: uuidv4(), walletPassword: null, path:'' };
+      opts = { ...defaults, ...opts };
+      const walletType = await this.store.indexType(walletId);
+      let privateKeyHex;
+
+      if(types.WALLET[walletType] === 'HD') {
+        if(_.isEmpty(opts.walletPassword)) throw new Error('HD wallets require a password to unlock.')
+        let nextAccount = await this.store.indexAccountNext(walletId);
+        let mnemonicEncrypted = await this.store.mnemonicGet(walletId);
+        let mnemonic = await this.mnemonic.decrypt(mnemonicEncrypted, opts.walletPassword);
+        privateKeyHex = await this.keyDerive(mnemonic, nextAccount);
+        opts.path = `m/12381/3600/${nextAccount}/0`;
+      }
+      else privateKeyHex =  await this.keyRandom();
+
+      return await this.keyImport(walletId, privateKeyHex, password, { keyId: opts.keyId, path: opts.path });
     }
     catch(error) { throw error; }
   }
 
-  async keyFromMnemonic(mnemonic) {
-    const seed = await bip39.mnemonicToSeed(mnemonic);
-    const seedBuffer = Buffer.from(seed);
+  async keyRandom() {
+    const sec = new bls.SecretKey()
+    sec.setByCSPRNG();
+    const pub = sec.getPublicKey();
+    return bls.toHexStr(sec.serialize());
+  }
+
+  async keyDerive(mnemonic, account, use=0, sub=null) {
+    try {
+      const seed = await bip39.mnemonicToSeed(mnemonic);
+      let extra  = (sub !== null) ? `${sub}` : '';
+      const key = deriveKey(seed, `m/12381/3600/${account}/${use}${extra}`);
+      return key.toString('hex');
+    }
+    catch(error) { throw error; }
   }
 
   /**
@@ -157,21 +184,25 @@ export class Wallet {
    * @param  {String}  walletId The wallet to import into.
    * @param  {String}  privateKey A 32byte HEX-format private key
    * @param  {String}  password A password to protect the key.
-   * @param  {String}  keyId The ID reference for the key.
+   * @param  {String}  [opts.keyId] The ID reference for the key.
+   * @param  {String}  [opts.path] Optional derivation path reference.
    * @return {Object}  An object containing the walletId <string> key ID <UUID> and public key <48-byte HEX>
    * @throws On failure
    */
-  async keyImport(walletId, privateKey, password, keyId=uuidv4()) {
+  async keyImport(walletId, privateKey, password, opts={}) {
     try {
+      let defaults = { keyId: uuidv4(), path: ''};
+      opts = { ...defaults, ...opts };
+
       const sec = bls.deserializeHexStrToSecretKey(privateKey);
       const pub = sec.getPublicKey();
       const pubKeyHex = bls.toHexStr(pub.serialize());
-      let saveData = await this.key.encrypt(privateKey, password, pubKeyHex, { keyId: keyId });
-      await this.store.keyWrite(saveData, { keyId: keyId, publicKey: pubKeyHex, path: walletId } );
+      let saveData = await this.key.encrypt(privateKey, password, pubKeyHex, { keyId: opts.keyId, path: opts.path });
+      await this.store.keyWrite(saveData, { keyId: opts.keyId, publicKey: pubKeyHex, path: walletId } );
 
       return {
         wallet_id: walletId,
-        key_id: keyId,
+        key_id: opts.keyId,
         public_key: pubKeyHex
       }
     }
@@ -271,6 +302,7 @@ export class Wallet {
     opts = { ...defaults, ...opts };
     let walletExists = await this.store.indexExists(opts.wallet_id);
     if(walletExists) throw new Error('Wallet already exists');
+    if(!types.WALLET.hasOwnProperty(opts.type)) throw new Error(`Wallet type '${opts.type}' not supported`);
     // HD wallet validation
     if(opts.type == 2) {
       if(_.isEmpty(opts.password)) throw new Error('Password required for HD wallets');

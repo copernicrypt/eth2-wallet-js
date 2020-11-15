@@ -76,7 +76,7 @@ const cKey = new CustomKey();
 let opts = {
   algorithm: 'aes-256-cbc',
   wallet_path: '~/.eth2-wallet-js/wallet',
-  fork_version: Buffer.from('00000001','hex'),
+  fork_version: 'medalla', // or 'mainnet'
   store: cStore,
   key: cKey
 }

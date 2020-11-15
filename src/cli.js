@@ -39,10 +39,11 @@ program
   .requiredOption('-w, --wallet <wallet>', 'The wallet ID to create a new key in')
   .requiredOption('-p, --password <password>', 'The password protecting the key')
   .option('-k, --key <key>', 'The key ID', uuidv4())
+  .option('-wp, --walletPassword <walletPassword>', 'The wallet password for HD wallets.', null)
   .action(async(cmdObj) => {
     try {
       await WALLET.init();
-      console.log(await WALLET.keyCreate(cmdObj.wallet, cmdObj.password, cmdObj.key));
+      console.log(await WALLET.keyCreate(cmdObj.wallet, cmdObj.password, { keyId: cmdObj.key, walletPassword: cmdObj.walletPassword }));
     }
     catch(error) { console.error(`Error: ${error.message}`); }
 });
@@ -72,7 +73,7 @@ program
   .action(async(cmdObj) => {
     try {
       await WALLET.init();
-      console.log(await WALLET.keyImport(cmdObj.wallet, cmdObj.privatekey, cmdObj.password, cmdObj.key));
+      console.log(await WALLET.keyImport(cmdObj.wallet, cmdObj.privatekey, cmdObj.password, { keyId: cmdObj.key }));
     }
     catch(error) { console.error(`Error: ${error.message}`); }
 });
