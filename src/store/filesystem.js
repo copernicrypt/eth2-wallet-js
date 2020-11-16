@@ -13,7 +13,7 @@ const HOMEDIR = require('os').homedir();
  */
 export class Filesystem {
   constructor(opts={}) {
-    let defaults = { path: `${HOMEDIR}/.eth2-wallet-js/wallet`, keyType: types.KEY.SIMPLE }
+    let defaults = { path: `${HOMEDIR}/.eth2-wallet-js/wallet`, keyType: 1 }
     opts = {...defaults, ...opts }
 
     this.rootPath = opts.path;
@@ -125,15 +125,29 @@ export class Filesystem {
   }
 
   /**
-   * Creates a new index file.keyId
+   * Retrieve the next accound index.
+   * @param  {String}  path An optional subpath where the index is stored.
+   * @return {Integer}      The next sequential account index.
+   */
+  async indexAccountNext(path=null) {
+    try {
+      let indexData = await this.indexGet(path);
+      if(types.WALLET[indexData.type] !== 'HD') throw new Error('Only HD wallets track account indexes.');
+      else return (_.isNil(indexData.currentAccount)) ? 0 : indexData.currentAccount + 1;
+    }
+    catch(error) { throw error; }
+  }
+
+  /**
+   * Creates a new index file.
    * @param  {String}  [path=null] Optional subpath to create the index.
    * @return {Object}              The Index data object.
    */
-  async indexCreate(path=null) {
+  async indexCreate(path=null, keyType=this.keyType) {
     try {
       let indexPath = this.pathGet('index', path);
       await fs.promises.mkdir(this.pathGet(path), { recursive: true });
-      const indexData = { type: this.keyType, key_list: [] };
+      const indexData = { type: keyType, key_list: [] };
       await fs.promises.writeFile(indexPath, JSON.stringify(indexData));
       return indexData;
     }
@@ -153,6 +167,23 @@ export class Filesystem {
     catch(error) { return false; }
   }
 
+  async indexGet(path=null) {
+    if(this.indexExists(path)) {
+      let indexPath = this.pathGet('index', path)
+      let buffer = await fs.promises.readFile(indexPath);
+      return JSON.parse(buffer.toString());
+    }
+    else throw new Error('Index does not exist.');
+  }
+
+  async indexType(path=null) {
+    try {
+      let indexData = await this.indexGet(path);
+      return indexData.type;
+    }
+    catch(error) { throw error; }
+  }
+
   async indexUpdate(keyId, publicKey=null, remove=false, path=null) {
     return this.indexQueue.add(() => this.indexUpdateAsync(keyId, publicKey, remove, path));
   }
@@ -169,10 +200,7 @@ export class Filesystem {
     try {
       let indexExists = await this.indexExists(path);
       if(!indexExists) await this.indexCreate(path);
-      let indexPath = this.pathGet('index', path)
-
-      let buffer = await fs.promises.readFile(indexPath);
-      let indexData = JSON.parse(buffer.toString());
+      let indexData = await this.indexGet(path);
       // check for existing keys
       let indexSearch = (publicKey === null) ? keyId : publicKey;
       let keyExists = await this.keyExists(indexSearch, path);
@@ -180,13 +208,36 @@ export class Filesystem {
       if(remove == true && keyExists) removed = await _.remove(indexData.key_list, function(o) {
         return (o.key_id == keyId || o.uuid == keyId);
       });
-      else if( remove == false && !keyExists) indexData.key_list.push({ key_id: keyId, public_key: publicKey });
+      else if( remove == false && !keyExists) {
+        indexData.key_list.push({ key_id: keyId, public_key: publicKey });
+        // Set the current account index for HD wallets.
+        if(types.WALLET[indexData.type] === 'HD') indexData.currentAccount = indexData.key_list.length;
+      }
       else if(remove == true && !keyExists) throw new Error(`Key not found: ${keyId}.`)
       else if(remove == false && keyExists) throw new Error(`Duplicate key found: ${publicKey}.`)
-      await fs.promises.writeFile(indexPath, JSON.stringify(indexData));
+      await fs.promises.writeFile(this.pathGet('index', path), JSON.stringify(indexData));
       return true;
     }
     catch(error) { throw error; }
+  }
+
+  async mnemonicCreate(mnemonic, path=null) {
+    try {
+      let mnemonicPath = this.pathGet('mnemonic', path);
+      await fs.promises.writeFile(mnemonicPath, JSON.stringify(mnemonic));
+      return true;
+    }
+    catch(error) { throw error; }
+  }
+
+  /**
+   * Returns an encrypted mnemonic JSON object.
+   * @param  {String}  [path=null] Subpath within the root wallet.
+   * @return {Object|String}              The mnemonic object string
+   */
+  async mnemonicGet(path=null) {
+    let key = await fs.promises.readFile(this.pathGet('mnemonic', path));
+    return JSON.parse(key);
   }
 
   /**

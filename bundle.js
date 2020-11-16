@@ -28,7 +28,8 @@ var extract__default = /*#__PURE__*/_interopDefaultLegacy(extract);
 
 const PUBLIC_KEY = new RegExp("^(0x)?[0-9a-f]{96}$");
 const UUID = new RegExp("^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$", 'i');
-const KEY = { SIMPLE: 1, HD: 2 };
+const FORKS = { 'mainnet': Buffer.from('00000000','hex'), 'medalla': Buffer.from('00000001','hex')};
+const WALLET = { 1: 'Simple', 2: 'HD' };
 
 /**
  * @module constants
@@ -224,6 +225,43 @@ class SimpleJson {
   }
 }
 
+const VERSION$2 = 1;
+const SUPPORTED_ALGOS$2 = ['aes-256-cbc', 'aes-256-ctr', 'aes-192-cbc', 'aes-192-ctr', 'aes-128-cbc', 'aes-128-ctr'];
+
+class Mnemonic {
+  constructor(algorithm='aes-256-cbc', version=VERSION$2) {
+    this.algorithm = algorithm;
+    this.version = version;
+    if(!SUPPORTED_ALGOS$2.includes(algorithm)) throw new Error(`Encryption algorithm not supported. Try ${SUPPORTED_ALGOS$2.toString()}`);
+    if(algorithm.substr(0, 7) === 'aes-128') this.keyLength = 16;
+    else if(algorithm.substr(0, 7) === 'aes-192') this.keyLength = 24;
+    else if(algorithm.substr(0, 7) === 'aes-256') this.keyLength = 32;
+  }
+
+  async encrypt(mnemonic, password, opts={}) {
+    let defaults = { };
+    opts = {...defaults, ...opts };
+    const iv = crypto__default['default'].randomBytes(16);
+    const key = crypto__default['default'].createHash('sha256').update(password).digest();
+
+    let cipher = crypto__default['default'].createCipheriv(this.algorithm, key, iv);
+    let encrypted = cipher.update(mnemonic);
+    encrypted = Buffer.concat([encrypted, cipher.final()]);
+    return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex') };
+  }
+
+  async decrypt(jsonKey, password) {
+    let iv = Buffer.from(jsonKey.iv, 'hex');
+    const key = crypto__default['default'].createHash('sha256').update(password).digest();
+
+    let encryptedText = Buffer.from(jsonKey.data, 'hex');
+    let decipher = crypto__default['default'].createDecipheriv(this.algorithm, key, iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+  }
+}
+
 /**
  * Returns a Key Object
  * @type {Function}
@@ -234,8 +272,166 @@ function getKey(algorithm, type) {
   switch(type) {
     case 'simple':
       return new SimpleJson(algorithm);
+    case 'mnemonic':
+      return new Mnemonic(algorithm);
     default:
       return new Eip2335(algorithm);
+  }
+}
+
+/**
+ * Converts and BigInt type to Buffer
+ * @param  {BigInt} bn The number to convert
+ * @return {Buffer}    The resulting buffer.
+ */
+function bigIntToBuffer(bn) {
+  var hex = BigInt(bn).toString(16);
+  if (hex.length % 2) { hex = '0' + hex; }
+
+  var len = hex.length / 2;
+  var u8 = new Uint8Array(len);
+
+  var i = 0;
+  var j = 0;
+  while (i < len) {
+    u8[i] = parseInt(hex.slice(j, j+2), 16);
+    i += 1;
+    j += 2;
+  }
+  return Buffer.from(u8);
+}
+
+/**
+ * Key Generation implementation of EIP-2333
+ * @see https://eips.ethereum.org/EIPS/eip-2333
+ * @type {Class}
+ */
+const sha256 = require('bcrypto/lib/sha256');
+const hkdf = require('bcrypto/lib/hkdf');
+
+class Eip2333 {
+
+  /**
+   * Derives a lamport key from a secret
+   * @param  {String} ikm  A secret octet string
+   * @param  {String} salt An octet string
+   * @return {Array<Buffer>}       An array of 255 32-octet strings
+
+   */
+  static ikmToLamportSk(ikm, salt) {
+    const okm = hkdf.derive(sha256, Buffer.from(ikm), Buffer.from(salt), Buffer.alloc(0), 8160);
+    let lsk = [];
+    //break the buffer into 255 chunks of 32
+    for(let i=0; i < 255; i++) {
+      lsk.push(okm.slice(i*32, (i+1)*32));
+    }
+    return lsk;
+  }
+  /**
+   * Converts a parent secret key to a compressed lamport private key
+   * @param  {Buffer} parentSk The BLS Secret Key of the parent node
+   * @param  {Integer} index    The index of the desired child node, an integer 0 <= index < 2^32
+   * @return {Buffer}          The compressed lamport PK, a 32 octet string
+   */
+  static parentSkToLamportPk(parentSk, index) {
+    const salt = Buffer.alloc(4);
+    salt.writeUInt32BE(index, 0);
+    const ikm = Buffer.from(parentSk);
+    const lamport0 = Eip2333.ikmToLamportSk(ikm, salt);
+    const notIkm = Buffer.from(ikm.map((value) => ~value));
+    const lamport1 = Eip2333.ikmToLamportSk(notIkm, salt);
+    const lamportPk = lamport0.concat(lamport1).map((value) => sha256.digest(value));
+    return sha256.digest(Buffer.concat(lamportPk));
+  }
+
+  /**
+   * Used to hash 32 random bytes into the subgroup of the BLS12-381 private keys.
+   * @param  {String} ikm          A secret octet string >= 256 bits in length
+   * @param  {String} [keyInfo=''] An optional octet string (default="", the empty string)
+   * @return {BigInt}              The corresponding secret key, an integer 0 <= SK < r.
+   */
+  static hkdfModR(ikm, keyInfo='') {
+    let salt = Buffer.from("BLS-SIG-KEYGEN-SALT-", "ascii");
+    const r = BigInt("52435875175126190479447740508185965837690552500527637822603658699938581184513");
+    let sk = BigInt(0);
+    while (sk == 0) {
+      salt = sha256.digest(salt);
+      const okm = hkdf.derive(
+        sha256,
+        Buffer.concat([ikm, Buffer.alloc(1)]),
+        salt,
+        Buffer.concat([Buffer.from(keyInfo), Buffer.from([0, 48])]),
+        48
+      );
+      sk = BigInt(`0x${okm.toString('hex')}`) % r;
+    }
+    return bigIntToBuffer(sk);
+  }
+
+  /**
+   * Takes in the parent’s private key and the index of the child and returns the child private key.
+   * @param  {Buffer} parentSk The secret key of the parent node, a big endian encoded integer
+   * @param  {Integer} index   The index of the desired child node, an integer 0 <= index < 2^32
+   * @return {Buffer}          The secret key of the child node, a big endian encoded integer
+   */
+  static deriveChildSk(parentSk, index) {
+    const compressedLamportPk = Eip2333.parentSkToLamportPk(parentSk, index);
+    return Eip2333.hkdfModR(compressedLamportPk);
+  }
+
+  /**
+   * The seed should ideally be derived from a mnemonic, with the intention being that BIP39 mnemonics,
+   * with the associated mnemonic_to_seed method be used.
+   * @see https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
+   * @see https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki#from-mnemonic-to-seed
+   * @param  {Buffer} seed The source entropy for the entire tree, a octet string >= 256 bits in length
+   * @return {Buffer}      The secret key of master node within the tree, a big endian encoded integer.
+   */
+  static deriveMasterSk(seed) {
+    if( (seed.byteLength * 8) < 256) throw new Error('Seed length is too short. You need at least 256-bits.')
+    return Eip2333.hkdfModR(seed);
+  }
+}
+
+const TYPES = { ETH1: 60, ETH2:3600 };
+
+/**
+ * Converts a derivation path to an array of indices based on the EIP334 specification. For use with EIP2333 key derivation.
+ * @see https://eips.ethereum.org/EIPS/eip-2334
+ * @param {String}  path The derivation path. ( m / purpose / coin_type /  account / use )
+ * @param {Integer} [coinType='ETH2'] The type of coin to validate.
+ * @throws When path is invalid.
+ */
+function pathToIndexList(path, coinType='ETH2') {
+  const pathList = path.split("/");
+  // Check validity of the path
+  if(pathList.length < 5) throw new Error('Path must contain at least 5 levels. See https://eips.ethereum.org/EIPS/eip-2334#path.');
+  if(pathList[0] !== 'm') throw new Error('Root level must be be "m". See https://eips.ethereum.org/EIPS/eip-2334#path');
+  if(pathList[1] !== '12381') throw new Error('Purpose level must be be "12381". See https://eips.ethereum.org/EIPS/eip-2334#purpose');
+  if(Number.parseInt(pathList[2]) !== TYPES[coinType]) throw new Error('Coin Type does not match. See https://eips.ethereum.org/EIPS/eip-2334#coin-type.')
+  pathList.shift(); // Remove root level
+  const indexList = pathList.map((level) => Number.parseInt(level));
+  if( indexList.some(level => { return (Number.isNaN(level) || level < 0 || level >= 4294967296) }) ) throw new Error('Each level needs to be an integer in the range 0 <= i < 2**32');
+
+  return indexList;
+}
+
+/**
+ * Derive a key from a seed and path.
+ * @param  {Buffer} seed The seed/entropy to derive from.
+ * @param  {String} path The derivation path.
+ * @return {Buffer}      The derived key.
+ * @throws When path is invalid.
+ */
+function deriveKey(seed, path) {
+  try {
+    let key = Eip2333.deriveMasterSk(seed);
+    const indexList = pathToIndexList(path);
+    indexList.forEach(i => key = Eip2333.deriveChildSk(key, i));
+    return key;
+  }
+  catch(error) {
+    throw error;
   }
 }
 
@@ -247,7 +443,7 @@ const HOMEDIR = require('os').homedir();
  */
 class Filesystem {
   constructor(opts={}) {
-    let defaults = { path: `${HOMEDIR}/.eth2-wallet-js/wallet`, keyType: KEY.SIMPLE };
+    let defaults = { path: `${HOMEDIR}/.eth2-wallet-js/wallet`, keyType: 1 };
     opts = {...defaults, ...opts };
 
     this.rootPath = opts.path;
@@ -359,15 +555,29 @@ class Filesystem {
   }
 
   /**
-   * Creates a new index file.keyId
+   * Retrieve the next accound index.
+   * @param  {String}  path An optional subpath where the index is stored.
+   * @return {Integer}      The next sequential account index.
+   */
+  async indexAccountNext(path=null) {
+    try {
+      let indexData = await this.indexGet(path);
+      if(WALLET[indexData.type] !== 'HD') throw new Error('Only HD wallets track account indexes.');
+      else return (___default['default'].isNil(indexData.currentAccount)) ? 0 : indexData.currentAccount + 1;
+    }
+    catch(error) { throw error; }
+  }
+
+  /**
+   * Creates a new index file.
    * @param  {String}  [path=null] Optional subpath to create the index.
    * @return {Object}              The Index data object.
    */
-  async indexCreate(path=null) {
+  async indexCreate(path=null, keyType=this.keyType) {
     try {
       let indexPath = this.pathGet('index', path);
       await fs__default['default'].promises.mkdir(this.pathGet(path), { recursive: true });
-      const indexData = { type: this.keyType, key_list: [] };
+      const indexData = { type: keyType, key_list: [] };
       await fs__default['default'].promises.writeFile(indexPath, JSON.stringify(indexData));
       return indexData;
     }
@@ -387,6 +597,23 @@ class Filesystem {
     catch(error) { return false; }
   }
 
+  async indexGet(path=null) {
+    if(this.indexExists(path)) {
+      let indexPath = this.pathGet('index', path);
+      let buffer = await fs__default['default'].promises.readFile(indexPath);
+      return JSON.parse(buffer.toString());
+    }
+    else throw new Error('Index does not exist.');
+  }
+
+  async indexType(path=null) {
+    try {
+      let indexData = await this.indexGet(path);
+      return indexData.type;
+    }
+    catch(error) { throw error; }
+  }
+
   async indexUpdate(keyId, publicKey=null, remove=false, path=null) {
     return this.indexQueue.add(() => this.indexUpdateAsync(keyId, publicKey, remove, path));
   }
@@ -403,10 +630,7 @@ class Filesystem {
     try {
       let indexExists = await this.indexExists(path);
       if(!indexExists) await this.indexCreate(path);
-      let indexPath = this.pathGet('index', path);
-
-      let buffer = await fs__default['default'].promises.readFile(indexPath);
-      let indexData = JSON.parse(buffer.toString());
+      let indexData = await this.indexGet(path);
       // check for existing keys
       let indexSearch = (publicKey === null) ? keyId : publicKey;
       let keyExists = await this.keyExists(indexSearch, path);
@@ -414,13 +638,36 @@ class Filesystem {
       if(remove == true && keyExists) removed = await ___default['default'].remove(indexData.key_list, function(o) {
         return (o.key_id == keyId || o.uuid == keyId);
       });
-      else if( remove == false && !keyExists) indexData.key_list.push({ key_id: keyId, public_key: publicKey });
+      else if( remove == false && !keyExists) {
+        indexData.key_list.push({ key_id: keyId, public_key: publicKey });
+        // Set the current account index for HD wallets.
+        if(WALLET[indexData.type] === 'HD') indexData.currentAccount = indexData.key_list.length;
+      }
       else if(remove == true && !keyExists) throw new Error(`Key not found: ${keyId}.`)
       else if(remove == false && keyExists) throw new Error(`Duplicate key found: ${publicKey}.`)
-      await fs__default['default'].promises.writeFile(indexPath, JSON.stringify(indexData));
+      await fs__default['default'].promises.writeFile(this.pathGet('index', path), JSON.stringify(indexData));
       return true;
     }
     catch(error) { throw error; }
+  }
+
+  async mnemonicCreate(mnemonic, path=null) {
+    try {
+      let mnemonicPath = this.pathGet('mnemonic', path);
+      await fs__default['default'].promises.writeFile(mnemonicPath, JSON.stringify(mnemonic));
+      return true;
+    }
+    catch(error) { throw error; }
+  }
+
+  /**
+   * Returns an encrypted mnemonic JSON object.
+   * @param  {String}  [path=null] Subpath within the root wallet.
+   * @return {Promise}             [description]
+   */
+  async mnemonicGet(path=null) {
+    let key = await fs__default['default'].promises.readFile(this.pathGet('mnemonic', path));
+    return JSON.parse(key);
   }
 
   /**
@@ -655,10 +902,11 @@ var DEPOSIT_CONTRACT = {
 /**
  * @module Wallet
  */
+const bip39 = require('bip39');
+
 const init = bls__default['default'].init(bls__default['default'].BLS12_381);
 const HOMEDIR$1 = require('os').homedir();
-const VERSION$2 = 1;
-const FORK_VERSION = Buffer.from('00000001','hex');
+const VERSION$3 = 1;
 const BLS_WITHDRAWAL_PREFIX = Buffer.from('00', 'hex');
 const DEPOSIT_AMOUNT = BigInt(32000000000);
 
@@ -671,16 +919,17 @@ class Wallet {
     let defaults = {
       wallet_path: `${HOMEDIR$1}/.eth2-wallet-js/wallet`,
       algorithm: 'aes-256-cbc',
-      fork_version: FORK_VERSION,
+      fork_version: 'medalla',
       key: null,
       store: null
     };
     opts = { ...defaults, ...opts };
-    this.version = VERSION$2;
+    this.version = VERSION$3;
     this.algorithm = opts.algorithm;
-    this.forkVersion = opts.fork_version;
+    this.forkVersion = FORKS[opts.fork_version];
     this.key = (opts.key === null) ? getKey(this.algorithm) : opts.key;
     this.store = (opts.store === null) ? getStore(opts.wallet_path) : opts.store;
+    this.mnemonic = getKey(this.algorithm, 'mnemonic');
   }
 
   /**
@@ -701,9 +950,10 @@ class Wallet {
    * @param  {String} [withdrawalOpts.withdrawal_key_id=<keyId>] The keyID of the Withdrawal key.
    * @param  {String} [withdrawalOpts.withdrawal_key_wallet=<walletId>] The wallet ID where the withdrawal key is stored.
    * @param  {String} [withdrawalOpts.withdrawal_public_key=null] The public key of the withdrawal key. Overrides withdrawal_key_wallet and withdrawal_key_id.
+   * @param  {String} [forkVersion=null] Optionally override the Instance fork version.
    * @return {Object|String}     Either an object containing the depoosit fields, or the raw TX data string.
    */
-  async depositData(walletId, keyId, password, withdrawalOpts ) {
+  async depositData(walletId, keyId, password, withdrawalOpts, forkVersion=null ) {
     let fields = ['withdrawal_key_wallet', 'withdrawal_key_id', 'withdrawal_public_key'];
     let hasOpt = fields.some(f => ___default['default'].has(withdrawalOpts, f));
     if(!hasOpt) throw new Error(`Options must include One of: ${fields.toString()}`);
@@ -727,7 +977,13 @@ class Wallet {
           amount: opts.amount,
           signature: Buffer.alloc(96),
       };
-      let signingRoot = getSigningRoot(depositData, this.forkVersion);
+      // forkVersion Override
+      let forkChoice = this.forkVersion;
+      if(forkVersion !== null) {
+        if(!FORKS.hasOwnProperty(forkVersion)) throw new Error(`Fork choice must be one of ${Object.keys(FORKS).toString()}`);
+        else forkChoice = FORKS[forkVersion];
+      }
+      let signingRoot = getSigningRoot(depositData, forkChoice);
       depositData.signature = await this.sign(signingRoot.toString('hex'), walletId, validatorPubKey, password);
       let depositDataRoot = getDepositDataRoot(depositData);
       if(opts.raw == true) {
@@ -755,17 +1011,46 @@ class Wallet {
    * Creates a new ETH2 keypair.
    * @param  {String} wallet_id The name of the wallet to create an key in.
    * @param  {String} password The password to protect the key.
-   * @param  {String} keyId=UUID] The name of the key to create.
+   * @param  {String} [opts.keyId=UUID] The name of the key to create.
+   * @param  {String} [opts.walletPassword=null] Wallet password for HD wallets.
    * @return {Object} An object containing the wallet_id, key_id and public_key.
    * @throws On failure
    */
-  async keyCreate(walletId, password, keyId=uuid.v4()) {
+  async keyCreate(walletId, password, opts={}) {
     try {
-      const sec = new bls__default['default'].SecretKey();
-      sec.setByCSPRNG();
-      const pub = sec.getPublicKey();
-      let privateKeyHex = bls__default['default'].toHexStr(sec.serialize());
-      return await this.keyImport(walletId, privateKeyHex, password, keyId);
+      let defaults = { keyId: uuid.v4(), walletPassword: null, path:'' };
+      opts = { ...defaults, ...opts };
+      const walletType = await this.store.indexType(walletId);
+      let privateKeyHex;
+
+      if(WALLET[walletType] === 'HD') {
+        if(___default['default'].isEmpty(opts.walletPassword)) throw new Error('HD wallets require a password to unlock.')
+        let nextAccount = await this.store.indexAccountNext(walletId);
+        let mnemonicEncrypted = await this.store.mnemonicGet(walletId);
+        let mnemonic = await this.mnemonic.decrypt(mnemonicEncrypted, opts.walletPassword);
+        privateKeyHex = await this.keyDerive(mnemonic, nextAccount);
+        opts.path = `m/12381/3600/${nextAccount}/0`;
+      }
+      else privateKeyHex =  await this.keyRandom();
+
+      return await this.keyImport(walletId, privateKeyHex, password, { keyId: opts.keyId, path: opts.path, hdOverride: true });
+    }
+    catch(error) { throw error; }
+  }
+
+  async keyRandom() {
+    const sec = new bls__default['default'].SecretKey();
+    sec.setByCSPRNG();
+    const pub = sec.getPublicKey();
+    return bls__default['default'].toHexStr(sec.serialize());
+  }
+
+  async keyDerive(mnemonic, account, use=0, sub=null) {
+    try {
+      const seed = await bip39.mnemonicToSeed(mnemonic);
+      let extra  = (sub !== null) ? `${sub}` : '';
+      const key = deriveKey(seed, `m/12381/3600/${account}/${use}${extra}`);
+      return key.toString('hex');
     }
     catch(error) { throw error; }
   }
@@ -780,6 +1065,9 @@ class Wallet {
    */
   async keyDelete(walletId, keyId, password) {
     try {
+      const walletType = await this.store.indexType(walletId);
+      if(WALLET[walletType] === 'HD') throw new Error('Cannot delete keys from HD wallets.');
+
       let key = await this.keyPrivate(walletId, keyId, password);
       await this.store.keyDelete(keyId, walletId);
       return true;
@@ -792,21 +1080,28 @@ class Wallet {
    * @param  {String}  walletId The wallet to import into.
    * @param  {String}  privateKey A 32byte HEX-format private key
    * @param  {String}  password A password to protect the key.
-   * @param  {String}  keyId The ID reference for the key.
+   * @param  {String}  [opts.keyId] The ID reference for the key.
+   * @param  {String}  [opts.path] Optional derivation path reference.
+   * @param  {Boolean} [opts.hdOverride] Overrides the default rejection of importing into HD wallets. Only used by the create function.
    * @return {Object}  An object containing the walletId <string> key ID <UUID> and public key <48-byte HEX>
    * @throws On failure
    */
-  async keyImport(walletId, privateKey, password, keyId=uuid.v4()) {
+  async keyImport(walletId, privateKey, password, opts={}) {
     try {
+      const walletType = await this.store.indexType(walletId);
+      if(WALLET[walletType] === 'HD' && opts.hdOverride !== true) throw new Error('Cannot import keys into HD wallets.');
+
+      let defaults = { keyId: uuid.v4(), path: ''};
+      opts = { ...defaults, ...opts };
       const sec = bls__default['default'].deserializeHexStrToSecretKey(privateKey);
       const pub = sec.getPublicKey();
       const pubKeyHex = bls__default['default'].toHexStr(pub.serialize());
-      let saveData = await this.key.encrypt(privateKey, password, pubKeyHex, { keyId: keyId });
-      await this.store.keyWrite(saveData, { keyId: keyId, publicKey: pubKeyHex, path: walletId } );
+      let saveData = await this.key.encrypt(privateKey, password, pubKeyHex, { keyId: opts.keyId, path: opts.path });
+      await this.store.keyWrite(saveData, { keyId: opts.keyId, publicKey: pubKeyHex, path: walletId } );
 
       return {
         wallet_id: walletId,
-        key_id: keyId,
+        key_id: opts.keyId,
         public_key: pubKeyHex
       }
     }
@@ -849,6 +1144,17 @@ class Wallet {
   }
 
   /**
+   * Parses a password file and returns the password for a key
+   * @param  {String}  file   The file destination to read.
+   * @param  {String}  wallet The wallet ID to search for.
+   * @param  {String}  key    The key ID to get password for.
+   * @return {String}         The password for this key.
+   */
+  async parsePasswordFile(file, wallet, key) {
+
+  }
+
+  /**
   * Signs a generic message with a private key.
   * @param  {String}  message   The message to sign (32-Byte HEX)
    * @param  {String}  walletId Wallet ID where the key is stored.
@@ -881,17 +1187,6 @@ class Wallet {
   }
 
   /**
-   * Restores a wallet from file.
-   * @param  {String}  source The absolute path of the source file.
-   * @param  {String}  [wallet=null] Optional wallet name to import into. Defaults to filename.
-   * @return {Boolean}        Returns true on success.
-   * @throws On Failure.
-   */
-  async walletRestore(source, wallet=null) {
-    return this.store.pathRestore(source, wallet);
-  }
-
-  /**
    * Creates a new wallet to store keys.
    * @param  {Object}  [opts={}] Optional parameters.
    * @param  {String}  [opts.wallet_id=uuidv4] Wallet identifer. If not provided, will be random.
@@ -906,8 +1201,20 @@ class Wallet {
     opts = { ...defaults, ...opts };
     let walletExists = await this.store.indexExists(opts.wallet_id);
     if(walletExists) throw new Error('Wallet already exists');
+    if(!WALLET.hasOwnProperty(opts.type)) throw new Error(`Wallet type '${opts.type}' not supported`);
+    // HD wallet validation
+    if(opts.type == 2) {
+      if(___default['default'].isEmpty(opts.password)) throw new Error('Password required for HD wallets');
+      if(!___default['default'].isEmpty(opts.mnemonic) && opts.mnemonic.trim().split(/\s+/g).length < 24) throw new Error('Mnemonic must be at least 24 words long.')
+    }
     try {
-      await this.store.indexCreate(opts.wallet_id);
+      await this.store.indexCreate(opts.wallet_id, opts.type);
+      // Handle Mnemonic storage
+      if(opts.type == 2) {
+        let mnemonic = (___default['default'].isEmpty(opts.mnemonic)) ? await bip39.generateMnemonic(256) : opts.mnemonic;
+        let mnemonicEncrypted = await this.mnemonic.encrypt(mnemonic, opts.password);
+        await this.store.mnemonicCreate(mnemonicEncrypted, opts.wallet_id);
+      }
       return opts.wallet_id;
     }
     catch(error) { throw error; }
@@ -935,6 +1242,34 @@ class Wallet {
    */
   async walletList() {
     return this.store.pathList();
+  }
+
+  /**
+   * Returns the wallet mnemonic phrase.
+   * @param  {String}  walletId The wallet ID.
+   * @param  {String}  password The password protecting the mnemonic.
+   * @return {String}           The mnemonic phrase.
+   */
+  async walletMnemonic(walletId, password) {
+    try {
+      const walletType = await this.store.indexType(walletId);
+      if(WALLET[walletType] === 'Simple') throw new Error('Only HD wallets have mnemonics');
+
+      let mnemonicJson = await this.store.mnemonicGet(walletId);
+      return await this.mnemonic.decrypt(mnemonicJson, password);
+    }
+    catch(error) { throw error; }
+  }
+
+  /**
+   * Restores a wallet from file.
+   * @param  {String}  source The absolute path of the source file.
+   * @param  {String}  [wallet=null] Optional wallet name to import into. Defaults to filename.
+   * @return {Boolean}        Returns true on success.
+   * @throws On Failure.
+   */
+  async walletRestore(source, wallet=null) {
+    return this.store.pathRestore(source, wallet);
   }
 }
 

@@ -3,6 +3,7 @@ import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import { Command } from 'commander';
 import { Wallet } from './wallet';
+import * as types from './types';
 
 const WALLET = new Wallet();
 
@@ -20,6 +21,7 @@ program
   .option('-wpk, --withdrawalpublickey <withdrawalpublickey>', 'The Public Key of the Withdrawal key. Optionally replaces <withdrawalwallet> and <withdrawalkey>', null)
   .option('-a, --amount <amount>', 'The amount of the deposit in gwei.', BigInt(32000000000))
   .option('-r, --raw', 'Whether to return the raw data HEX.', false)
+  .option('-f, --fork <fork>', 'Optionally override the default fork', null)
   .action(async(cmdObj) => {
     try {
       await WALLET.init();
@@ -28,7 +30,7 @@ program
         if(!_.isNil(cmdObj.withdrawalwallet)) opts.withdrawal_key_wallet = cmdObj.withdrawalwallet;
         if(!_.isNil(cmdObj.withdrawalkey)) opts.withdrawal_key_id = cmdObj.withdrawalkey;
       }
-      console.log(await WALLET.depositData(cmdObj.wallet, cmdObj.key, cmdObj.password, opts));
+      console.log(await WALLET.depositData(cmdObj.wallet, cmdObj.key, cmdObj.password, opts, cmdObj.fork));
     }
     catch(error) { console.error(`Error: ${error.message}`); }
   });
@@ -39,10 +41,11 @@ program
   .requiredOption('-w, --wallet <wallet>', 'The wallet ID to create a new key in')
   .requiredOption('-p, --password <password>', 'The password protecting the key')
   .option('-k, --key <key>', 'The key ID', uuidv4())
+  .option('-wp, --walletPassword <walletPassword>', 'The wallet password for HD wallets.', null)
   .action(async(cmdObj) => {
     try {
       await WALLET.init();
-      console.log(await WALLET.keyCreate(cmdObj.wallet, cmdObj.password, cmdObj.key));
+      console.log(await WALLET.keyCreate(cmdObj.wallet, cmdObj.password, { keyId: cmdObj.key, walletPassword: cmdObj.walletPassword }));
     }
     catch(error) { console.error(`Error: ${error.message}`); }
 });
@@ -72,7 +75,7 @@ program
   .action(async(cmdObj) => {
     try {
       await WALLET.init();
-      console.log(await WALLET.keyImport(cmdObj.wallet, cmdObj.privatekey, cmdObj.password, cmdObj.key));
+      console.log(await WALLET.keyImport(cmdObj.wallet, cmdObj.privatekey, cmdObj.password, { keyId: cmdObj.key }));
     }
     catch(error) { console.error(`Error: ${error.message}`); }
 });
@@ -154,12 +157,14 @@ program
   .command('walletCreate')
   .description('creates a new wallet')
   .option('-w, --wallet <wallet>', 'The wallet ID', null)
-  .option('-t, --type <type>', 'The wallet type (1=Basic, 2=HD (not implemented))', 1)
+  .option('-t, --type <type>', 'The wallet type (1=Basic, 2=HD)', 1)
+  .option('-p, --password <password>', 'The HD wallet password.', null)
+  .option('-m, --mnemonic <mnemonic>', 'The BIP39 mnemonic phrase', null)
   .action(async(cmdObj) => {
     try {
       await WALLET.init();
-      let params = { type: cmdObj.type }
-      if(params.type !== 1 && params.type !== 2) console.error(`Wallet type '${params.type}' not supported`);
+      let params = { type: cmdObj.type, password: cmdObj.password, mnemonic: cmdObj.mnemonic }
+      if(params.type == 1 && params.type == 2) console.error(`Wallet type '${params.type}' not supported`);
       else {
         if(!_.isNil(cmdObj.wallet)) params.wallet_id = cmdObj.wallet;
         let walletId = await WALLET.walletCreate( params );
@@ -193,6 +198,20 @@ program
     }
     catch(error) { console.error(`Error: ${error.message}`); }
 });
+
+program
+  .command('walletMnemonic')
+  .description('returns the mnemonic for an HD wallet')
+  .requiredOption('-w, --wallet <wallet>', 'The wallet to search for.')
+  .requiredOption('-p, --password <password>', 'The password protecting the wallet.')
+  .action( async(cmdObj) => {
+    try {
+      await WALLET.init();
+      let mnemonic = await WALLET.walletMnemonic(cmdObj.wallet, cmdObj.password);
+      console.log(mnemonic);
+    }
+    catch(error) { console.error(`Error: ${error.message}`); }
+  });
 
 program
   .command('walletRestore')

@@ -12,6 +12,13 @@ const KEYSEARCHOBJ = {
   public_key: expect.stringMatching(types.PUBLIC_KEY),
   key_object: expect.any(Object)
 }
+const MNEMONIC_OBJECT = {
+  algorithm: expect.any(String),
+  iv: expect.any(String),
+  data: expect.any(String)
+}
+const TEST_MNEMONIC_PHRASE = 'panther index connect repair pass clip easily meat mountain pencil toss flash';
+const TEST_MNEMONIC_JSON = {"algorithm":"aes-256-cbc","iv":"2bba9ea8dc55098afcbd9406754cd982","data":"dc4c509a76d57591a4c4dfbd48ac2b25dab38b9c74f7545f849b74b3831fba078e8c8d289570671772e71614e4b39b9a7c83880c01766aea1c71720a8e997e40d922f82cbbe57f02be7bdb092e7f1885"}
 
 describe('filesystem STORE', () => {
   let store;
@@ -114,6 +121,28 @@ describe('filesystem STORE', () => {
     it('should fail with nonexistent file', async () => {
       await expect(store.pathRestore(store.pathGet(`fakefile.zip`)))
         .rejects.toMatchObject(expect.any(Object));
+    });
+  });
+
+  describe('mnemonicCreate', () => {
+    beforeAll( async () => { await store.indexCreate(TESTPATH); });
+    afterAll( async () => { await store.pathDelete(TESTPATH); });
+    it('should create a mnemonic file', async () => {
+      await store.mnemonicCreate(TEST_MNEMONIC_JSON, TESTPATH);
+      await expect(store.mnemonicGet(TESTPATH))
+        .resolves.toMatchObject(TEST_MNEMONIC_JSON);
+    });
+  });
+
+  describe('mnemonicGet', () => {
+    beforeAll( async () => {
+      await store.indexCreate(TESTPATH);
+      await store.mnemonicCreate(TEST_MNEMONIC_JSON, TESTPATH);
+    });
+    afterAll( async () => { await store.pathDelete(TESTPATH); });
+    it('should return a mnemonic json file', async () => {
+      await expect(store.mnemonicGet(TESTPATH))
+        .resolves.toMatchObject(TEST_MNEMONIC_JSON);
     });
   });
 

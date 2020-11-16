@@ -5,6 +5,7 @@ import { Wallet } from './wallet';
 import * as types from './types';
 import walletMock from '../__mocks__/wallet.json';
 import attestMock from '../__mocks__/attestations.json';
+const bip39 = require('bip39');
 
 const TEST_PASSWORD = 'test';
 const TEST_PASSWORD_WRONG = 'testwrong';
@@ -13,6 +14,7 @@ const KEY_OBJECT = {
   key_id: expect.stringMatching(types.UUID),
   public_key: expect.stringMatching(types.PUBLIC_KEY)
 }
+const TEST_MNEMONIC = 'explain fix pink title village payment sell under critic adapt zone upset explain fix pink title village payment sell under critic adapt zone upset';
 let walletDeleteList = [];
 
 describe('Wallet', () => {
@@ -36,7 +38,7 @@ describe('Wallet', () => {
     let keyId;
     beforeEach(async () => {
       keyId = uuidv4();
-      await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, keyId);
+      await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: keyId });
     });
     it('should return valid deposit data', async () => {
       let data = await keystore.depositData(walletMock.wallet_list[0], keyId, TEST_PASSWORD, { raw: false, withdrawal_public_key: walletMock.key_list[1].public_key});
@@ -63,17 +65,22 @@ describe('Wallet', () => {
     });
     it('should not allow duplicate key IDs', async () => {
       let key_id = uuidv4();
-      await expect( keystore.keyCreate(walletMock.wallet_list[0], TEST_PASSWORD, key_id))
+      await expect( keystore.keyCreate(walletMock.wallet_list[0], TEST_PASSWORD, { keyId: key_id }))
         .resolves.toMatchObject(KEY_OBJECT);
-      await expect( keystore.keyCreate(walletMock.wallet_list[0], TEST_PASSWORD, key_id))
+      await expect( keystore.keyCreate(walletMock.wallet_list[0], TEST_PASSWORD, { keyId: key_id }))
         .rejects.toMatchObject(expect.any(Error));
+    });
+    it('should fail without a password', async () => {
+      await expect(async () => {
+        await keystore.keyCreate(walletMock.wallet_list[0]);
+      }).rejects.toThrow();
     });
   });
 
   describe('keyDelete', () => {
     let keyId = uuidv4();
     beforeEach(async () => {
-      await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, keyId);
+      await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: keyId });
     });
     it('should return true with a correct password, keyId, and walletId', async () => {
       await expect(keystore.keyDelete(walletMock.wallet_list[0], keyId, TEST_PASSWORD))
@@ -101,17 +108,17 @@ describe('Wallet', () => {
     });
     it('should not allow duplicate key IDs', async () => {
       let key_id = uuidv4();
-      await expect( keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, key_id))
+      await expect( keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: key_id }))
         .resolves.toMatchObject(KEY_OBJECT);
-      await expect( keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, key_id))
+      await expect( keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: key_id }))
         .rejects.toMatchObject(expect.any(Error));
     });
     it('should not allow duplicate private keys', async () => {
       let key_id1 = uuidv4();
       let key_id2 = uuidv4();
-      await expect( keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, key_id1))
+      await expect( keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: key_id1 }))
         .resolves.toMatchObject(KEY_OBJECT);
-      await expect( keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, key_id2))
+      await expect( keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: key_id2 }))
         .rejects.toMatchObject(expect.any(Error));
     });
   });
@@ -134,13 +141,13 @@ describe('Wallet', () => {
 
   describe('keyPrivate', () => {
     it('returns a private key hex', async () => {
-      let result = await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, walletMock.key_list[0].key_id);
+      let result = await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: walletMock.key_list[0].key_id });
       let pk = await keystore.keyPrivate(walletMock.wallet_list[0], walletMock.key_list[0].key_id, TEST_PASSWORD);
       expect(pk).toBe(walletMock.key_list[0].private_key);
       expect(pk).toMatch(types.PRIVATE_KEY);
     });
     it('throws with incorrect password', async () => {
-      let result = await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, walletMock.key_list[0].key_id);
+      let result = await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: walletMock.key_list[0].key_id });
       await expect(keystore.keyPrivate(walletMock.wallet_list[0], walletMock.key_list[0].key_id, TEST_PASSWORD_WRONG))
         .rejects.toMatchObject(expect.any(Object));
     });
@@ -150,7 +157,7 @@ describe('Wallet', () => {
     let keyId;
     beforeEach(async () => {
       keyId = uuidv4();
-      await keystore.keyImport(walletMock.wallet_list[0], attestMock[0].private_key, TEST_PASSWORD, keyId);
+      await keystore.keyImport(walletMock.wallet_list[0], attestMock[0].private_key, TEST_PASSWORD, { keyId: keyId });
     });
     it('returns a valid and correct signature for a key', async () => {
       for(let i=0; i < attestMock[0].attestation_list.length; i++) {
@@ -231,11 +238,144 @@ describe('Wallet', () => {
     });
     it('should recreate a wallet', async () => {
       await keystore.walletRestore(keystore.store.pathGet(`${backupId}.zip`));
-      expect(keystore.store.indexExists(backupId)).resolves.toBe(true);
+      await expect(keystore.store.indexExists(backupId)).resolves.toBe(true);
     });
     it('should fail with nonexistent file', async () => {
       await expect(keystore.walletRestore(`/home/test/fakefile.zip`))
         .rejects.toMatchObject(expect.any(Object));
+    });
+  });
+});
+
+describe('HD Wallets', () => {
+  let keystore;
+  let walletId = null;
+  let testerWalletId;
+
+  beforeAll(async () => {
+    keystore = new Wallet();
+    await keystore.init();
+    testerWalletId = await keystore.walletCreate({ type: 2, password: TEST_PASSWORD });
+  });
+  afterAll(async () => { await keystore.walletDelete(testerWalletId); });
+  afterEach(async () => {
+    if(walletId !== null) {
+      await keystore.walletDelete(walletId);
+      walletId = null;
+    }
+  });
+
+  describe('walletCreate New', () => {
+    it('should create a new wallet with a valid 24-word seed', async () => {
+      walletId = await keystore.walletCreate({ type: 2, password: TEST_PASSWORD });
+      expect(walletId).toMatch(types.UUID);
+      let mnemonic = await keystore.walletMnemonic(walletId, TEST_PASSWORD);
+      expect(bip39.validateMnemonic(mnemonic)).toBe(true);
+      expect(mnemonic.match(/\S+/g).length).toBeGreaterThanOrEqual(24);
+    });
+    it('fails without a supplied password', async() => {
+      await expect(keystore.walletCreate({ type: 2 }))
+        .rejects.toThrow();
+    });
+  });
+
+  describe('walletCreate from Seed', () => {
+    it('should create a wallet using the provided seed.', async () => {
+      walletId = await keystore.walletCreate({ type: 2, password: TEST_PASSWORD, mnemonic: TEST_MNEMONIC });
+      expect(walletId).toMatch(types.UUID);
+      await expect(keystore.walletMnemonic(walletId, TEST_PASSWORD))
+        .resolves.toEqual(TEST_MNEMONIC);
+    });
+  });
+
+  let backupId;
+  describe('walletBackup', () => {
+    afterAll( async() => { await keystore.walletDelete(backupId); });
+    it('creates a backup file for a wallet', async () => {
+      backupId = await keystore.walletCreate({ type: 2, password: TEST_PASSWORD, mnemonic: TEST_MNEMONIC });
+      await expect(keystore.walletBackup(backupId))
+        .resolves.toEqual(expect.any(String));
+    });
+  });
+
+  describe('walletRestore', () => {
+    afterAll( async() => {
+      await keystore.walletDelete(backupId);
+      await fs.promises.unlink(keystore.store.pathGet(`${backupId}.zip`));
+    });
+    it('should recreate a wallet with matching mnemonic', async () => {
+      await keystore.walletRestore(keystore.store.pathGet(`${backupId}.zip`));
+      await expect(keystore.store.indexExists(backupId)).resolves.toBe(true);
+      await expect(keystore.walletMnemonic(backupId, TEST_PASSWORD)).resolves.toEqual(TEST_MNEMONIC);
+    });
+  });
+
+  describe('walletMnemonic', () => {
+    let walletId = uuidv4();
+    beforeAll( async () => { await keystore.walletCreate({ wallet_id: walletId, type: 2, password: TEST_PASSWORD, mnemonic: TEST_MNEMONIC }); });
+    afterAll( async() => { await keystore.walletDelete(walletId); });
+    it('returns a wallet mnemonic phrase', async () => {
+      expect(keystore.walletMnemonic(walletId, TEST_PASSWORD))
+        .resolves.toEqual(TEST_MNEMONIC);
+    });
+    it('fails with incorrect password', () => {
+      expect(keystore.walletMnemonic(walletId, TEST_PASSWORD_WRONG))
+        .rejects.toMatchObject(expect.any(Object));
+    });
+  });
+
+  describe('keyCreate', () => {
+    it('should return an object with the properties wallet_id, key_id, public_key', async () => {
+      let result = await keystore.keyCreate(testerWalletId, TEST_PASSWORD, { walletPassword: TEST_PASSWORD });
+      expect(result).toMatchObject(KEY_OBJECT);
+    });
+    it('should fail without a password', async () => {
+      await expect(async () => {
+        await keystore.keyCreate(walletMock.wallet_list[0], '');
+      }).rejects.toThrow();
+    });
+    it('should fail without an incorrect wallet password', async () => {
+      await expect(async () => {
+        await keystore.keyCreate(walletMock.wallet_list[0], TEST_PASSWORD, { walletPassword: TEST_PASSWORD_WRONG });
+      }).rejects.toThrow();
+    });
+  });
+
+  describe('keyDelete', () => {
+    let keyId = uuidv4();
+    it('should fail always', async () => {
+      await keystore.keyCreate(testerWalletId, TEST_PASSWORD, { keyId: keyId, walletPassword: TEST_PASSWORD });
+      await expect(async() => {
+        await keystore.keyDelete(testerWalletId, keyId, TEST_PASSWORD)
+      }).rejects.toThrow();
+    });
+  });
+
+  describe('keyImport', () => {
+    it('should fail always', async () => {
+      await expect(async() => {
+        await keystore.keyImport(testerWalletId, walletMock.key_list[0].private_key, TEST_PASSWORD)
+      }).rejects.toThrow();
+    });
+  });
+
+  describe('keyList', () => {
+    it('returns an array of key objects', async () => {
+      await keystore.keyCreate(testerWalletId, TEST_PASSWORD, { walletPassword: TEST_PASSWORD });
+      await keystore.keyCreate(testerWalletId, TEST_PASSWORD, { walletPassword: TEST_PASSWORD });
+      await keystore.keyCreate(testerWalletId, TEST_PASSWORD, { walletPassword: TEST_PASSWORD });
+      let result = await keystore.keyList(testerWalletId);
+      for(let i=0; i < result.length; i++) {
+        expect(result[i]).toMatchObject(_.omit(KEY_OBJECT, 'wallet_id'));
+      }
+    });
+  });
+
+  describe('keyPrivate', () => {
+    it('returns a private key hex', async () => {
+      let result = await keystore.keyCreate(testerWalletId, TEST_PASSWORD, { walletPassword: TEST_PASSWORD });
+      let pk = await keystore.keyPrivate(testerWalletId, result.key_id, TEST_PASSWORD);
+      expect(pk).toMatch(types.PRIVATE_KEY);
     });
   });
 });
