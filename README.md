@@ -4,7 +4,7 @@
 
 VanillaJS implementation of an Ethereum 2 Wallet keystore.
 
-**\*\*UNDER ACTIVE DEVELOPMENT, NOT FOR PRODUCTION USE\*\***
+**\*\*USE AT YOUR OWN RISK\*\***
 
 -   [Highlights](#highlights)
 -   [Dependencies](#dependencies)
@@ -540,8 +540,7 @@ $ yarn run cli depositData --wallet=primary --password=testpassword --key=testac
 ```
 
 ## Notes/Limitations
--   No HD wallet support (yet)
--   All core functions return promises.
+-   Use at your own risk.
 
 ## Roadmap
 -   ~Implement [EIP-2335](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-2335.md)~
