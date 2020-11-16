@@ -34,22 +34,22 @@ describe('Wallet', () => {
   });
 
   describe('depositData', () => {
-    let withdrawPubKey = 'b6de3f6dd56a863f69bca81af4dc9877d04a81df361bbe555d6944b9d84fce18fdfb939d9ef3c312ead638b759b207c9';
+    let withdrawPubKey = 'b8ea96fb822f4af7351be9253af50d8e60c12399450a44538b168de1502dddd03220d75f22fc21c19644c38af46d95d6';
     let keyId;
     beforeEach(async () => {
       keyId = uuidv4();
-      await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[0].private_key, TEST_PASSWORD, { keyId: keyId });
+      await keystore.keyImport(walletMock.wallet_list[0], walletMock.key_list[5].private_key, TEST_PASSWORD, { keyId: keyId });
     });
     it('should return valid deposit data', async () => {
-      let data = await keystore.depositData(walletMock.wallet_list[0], keyId, TEST_PASSWORD, { raw: false, withdrawal_public_key: walletMock.key_list[1].public_key});
+      let data = await keystore.depositData(walletMock.wallet_list[0], keyId, TEST_PASSWORD, { raw: false, withdrawal_public_key: walletMock.key_list[6].public_key});
       expect(data).toEqual(walletMock.deposit_data);
     });
     it('should return valid raw data', async () => {
-      let data = await keystore.depositData(walletMock.wallet_list[0], keyId, TEST_PASSWORD, { withdrawal_public_key: walletMock.key_list[1].public_key});
+      let data = await keystore.depositData(walletMock.wallet_list[0], keyId, TEST_PASSWORD, { withdrawal_public_key: walletMock.key_list[6].public_key});
       expect(data).toEqual(walletMock.deposit_data_raw);
     });
     it('should throw with incorrect password', async () => {
-      await expect(keystore.depositData(walletMock.wallet_list[0], keyId, TEST_PASSWORD_WRONG, { withdrawal_public_key: walletMock.key_list[1].public_key}))
+      await expect(keystore.depositData(walletMock.wallet_list[0], keyId, TEST_PASSWORD_WRONG, { withdrawal_public_key: walletMock.key_list[6].public_key}))
         .rejects.toMatchObject(expect.any(Object));
     });
     it('should throw if withdrawal opts are not specified', async () => {
