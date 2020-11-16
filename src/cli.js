@@ -3,6 +3,7 @@ import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import { Command } from 'commander';
 import { Wallet } from './wallet';
+import * as types from './types';
 
 const WALLET = new Wallet();
 
@@ -20,6 +21,7 @@ program
   .option('-wpk, --withdrawalpublickey <withdrawalpublickey>', 'The Public Key of the Withdrawal key. Optionally replaces <withdrawalwallet> and <withdrawalkey>', null)
   .option('-a, --amount <amount>', 'The amount of the deposit in gwei.', BigInt(32000000000))
   .option('-r, --raw', 'Whether to return the raw data HEX.', false)
+  .option('-f, --fork <fork>', 'Optionally override the default fork', null)
   .action(async(cmdObj) => {
     try {
       await WALLET.init();
@@ -28,7 +30,7 @@ program
         if(!_.isNil(cmdObj.withdrawalwallet)) opts.withdrawal_key_wallet = cmdObj.withdrawalwallet;
         if(!_.isNil(cmdObj.withdrawalkey)) opts.withdrawal_key_id = cmdObj.withdrawalkey;
       }
-      console.log(await WALLET.depositData(cmdObj.wallet, cmdObj.key, cmdObj.password, opts));
+      console.log(await WALLET.depositData(cmdObj.wallet, cmdObj.key, cmdObj.password, opts, cmdObj.fork));
     }
     catch(error) { console.error(`Error: ${error.message}`); }
   });

@@ -340,6 +340,20 @@ describe('CLI', () => {
       expect(list.length).toBeGreaterThanOrEqual(2);
     });
   });
+
+  describe('walletMnemonic', () => {
+    const TEST_MNEMONIC = 'explain fix pink title village payment sell under critic adapt zone upset explain fix pink title village payment sell under critic adapt zone upset';
+    const TEST_HD_WALLET = 'HDTestCLI';
+    afterAll(async() => {
+      await cli(['walletDelete', `--wallet=${TEST_HD_WALLET}`], '.');
+    });
+    it('creates a new wallet using existing mnemonic', async () => {
+      let result = await cli(['walletCreate', `--wallet=${TEST_HD_WALLET}`, `--type=2`, `--password=${testPassword}`, `--mnemonic="${TEST_MNEMONIC}"`], '.');
+      expect(result.stdout.includes(`Created wallet: ${TEST_HD_WALLET}`)).toBe(true);
+      let result2 = await cli(['walletMnemonic', `--wallet=${TEST_HD_WALLET}`, `--password=${testPassword}`], '.');
+      expect(result2.stdout.includes(TEST_MNEMONIC)).toBe(true);
+    });
+  });
 });
 
 function cli(args, cwd) {

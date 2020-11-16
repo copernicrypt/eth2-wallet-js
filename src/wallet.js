@@ -89,7 +89,11 @@ export class Wallet {
           signature: Buffer.alloc(96),
       };
       // forkVersion Override
-      const forkChoice = (types.FORKS.hasOwnProperty(forkVersion)) ? types.FORKS[forkVersion] : this.forkVersion;
+      let forkChoice = this.forkVersion;
+      if(forkVersion !== null) {
+        if(!types.FORKS.hasOwnProperty(forkVersion)) throw new Error(`Fork choice must be one of ${Object.keys(types.FORKS).toString()}`);
+        else forkChoice = types.FORKS[forkVersion];
+      }
       let signingRoot = utils.getSigningRoot(depositData, forkChoice);
       depositData.signature = await this.sign(signingRoot.toString('hex'), walletId, validatorPubKey, password);
       let depositDataRoot = utils.getDepositDataRoot(depositData);
@@ -140,7 +144,7 @@ export class Wallet {
       }
       else privateKeyHex =  await this.keyRandom();
 
-      return await this.keyImport(walletId, privateKeyHex, password, { keyId: opts.keyId, path: opts.path });
+      return await this.keyImport(walletId, privateKeyHex, password, { keyId: opts.keyId, path: opts.path, hdOverride: true });
     }
     catch(error) { throw error; }
   }
@@ -172,6 +176,9 @@ export class Wallet {
    */
   async keyDelete(walletId, keyId, password) {
     try {
+      const walletType = await this.store.indexType(walletId);
+      if(types.WALLET[walletType] === 'HD') throw new Error('Cannot delete keys from HD wallets.');
+
       let key = await this.keyPrivate(walletId, keyId, password);
       await this.store.keyDelete(keyId, walletId);
       return true;
@@ -186,14 +193,17 @@ export class Wallet {
    * @param  {String}  password A password to protect the key.
    * @param  {String}  [opts.keyId] The ID reference for the key.
    * @param  {String}  [opts.path] Optional derivation path reference.
+   * @param  {Boolean} [opts.hdOverride] Overrides the default rejection of importing into HD wallets. Only used by the create function.
    * @return {Object}  An object containing the walletId <string> key ID <UUID> and public key <48-byte HEX>
    * @throws On failure
    */
   async keyImport(walletId, privateKey, password, opts={}) {
     try {
+      const walletType = await this.store.indexType(walletId);
+      if(types.WALLET[walletType] === 'HD' && opts.hdOverride !== true) throw new Error('Cannot import keys into HD wallets.');
+
       let defaults = { keyId: uuidv4(), path: ''};
       opts = { ...defaults, ...opts };
-
       const sec = bls.deserializeHexStrToSecretKey(privateKey);
       const pub = sec.getPublicKey();
       const pubKeyHex = bls.toHexStr(pub.serialize());
@@ -306,7 +316,7 @@ export class Wallet {
     // HD wallet validation
     if(opts.type == 2) {
       if(_.isEmpty(opts.password)) throw new Error('Password required for HD wallets');
-      if(!_.isEmpty(opts.mnemonic) && opts.mnemonic.trim().split(/\s+/g).length < 12) throw new Error('Mnemonic must be at least 12 words long.')
+      if(!_.isEmpty(opts.mnemonic) && opts.mnemonic.trim().split(/\s+/g).length < 24) throw new Error('Mnemonic must be at least 24 words long.')
     }
     try {
       await this.store.indexCreate(opts.wallet_id, opts.type);
@@ -353,6 +363,9 @@ export class Wallet {
    */
   async walletMnemonic(walletId, password) {
     try {
+      const walletType = await this.store.indexType(walletId);
+      if(types.WALLET[walletType] === 'Simple') throw new Error('Only HD wallets have mnemonics');
+
       let mnemonicJson = await this.store.mnemonicGet(walletId);
       return await this.mnemonic.decrypt(mnemonicJson, password);
     }

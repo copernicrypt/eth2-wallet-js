@@ -88,47 +88,51 @@ await w.init();
 ### Functions
 
 <a name="module_Wallet"></a>
-#### Wallet
+## Wallet
 
 * [Wallet](#module_Wallet)
     * [.Wallet](#module_Wallet.Wallet) : <code>Object</code>
         * [.init()](#module_Wallet.Wallet+init) ⇒ <code>Null</code>
-        * [.depositData(walletId, keyId, password, withdrawalOpts)](#module_Wallet.Wallet+depositData) ⇒ <code>Object</code> \| <code>String</code>
-        * [.keyCreate(wallet_id, password, keyId)](#module_Wallet.Wallet+keyCreate) ⇒ <code>Object</code>
+        * [.depositData(walletId, keyId, password, withdrawalOpts, [forkVersion])](#module_Wallet.Wallet+depositData) ⇒ <code>Object</code> \| <code>String</code>
+        * [.keyCreate(wallet_id, password)](#module_Wallet.Wallet+keyCreate) ⇒ <code>Object</code>
         * [.keyDelete(walletId, keyId, password)](#module_Wallet.Wallet+keyDelete) ⇒ <code>Boolean</code>
-        * [.keyImport(walletId, privateKey, password, keyId)](#module_Wallet.Wallet+keyImport) ⇒ <code>Object</code>
+        * [.keyImport(walletId, privateKey, password)](#module_Wallet.Wallet+keyImport) ⇒ <code>Object</code>
         * [.keyList(id)](#module_Wallet.Wallet+keyList) ⇒ <code>Array</code>
         * [.keyPrivate(walletId, keyId, password)](#module_Wallet.Wallet+keyPrivate) ⇒ <code>String</code>
         * [.keySearch(search, walletId)](#module_Wallet.Wallet+keySearch) ⇒ <code>Object</code>
+        * [.parsePasswordFile(file, wallet, key)](#module_Wallet.Wallet+parsePasswordFile) ⇒ <code>String</code>
         * [.sign(message, walletId, search, password)](#module_Wallet.Wallet+sign) ⇒ <code>Array</code>
         * [.walletBackup(walletId, [destination])](#module_Wallet.Wallet+walletBackup) ⇒ <code>Promise</code>
-        * [.walletRestore(source)](#module_Wallet.Wallet+walletRestore) ⇒ <code>Boolean</code>
         * [.walletCreate([opts])](#module_Wallet.Wallet+walletCreate) ⇒ <code>String</code>
         * [.walletDelete(id)](#module_Wallet.Wallet+walletDelete) ⇒ <code>Boolean</code>
         * [.walletList()](#module_Wallet.Wallet+walletList) ⇒ <code>Array</code>
+        * [.walletMnemonic(walletId, password)](#module_Wallet.Wallet+walletMnemonic) ⇒ <code>String</code>
+        * [.walletRestore(source, [wallet])](#module_Wallet.Wallet+walletRestore) ⇒ <code>Boolean</code>
 
 <a name="module_Wallet.Wallet"></a>
 
-#### Wallet.Wallet : <code>Object</code>
+### Wallet.Wallet : <code>Object</code>
 An implementation of ETH2 Wallet
 
 **Kind**: static class of [<code>Wallet</code>](#module_Wallet)  
 
 * [.Wallet](#module_Wallet.Wallet) : <code>Object</code>
     * [.init()](#module_Wallet.Wallet+init) ⇒ <code>Null</code>
-    * [.depositData(walletId, keyId, password, withdrawalOpts)](#module_Wallet.Wallet+depositData) ⇒ <code>Object</code> \| <code>String</code>
-    * [.keyCreate(wallet_id, password, keyId)](#module_Wallet.Wallet+keyCreate) ⇒ <code>Object</code>
+    * [.depositData(walletId, keyId, password, withdrawalOpts, [forkVersion])](#module_Wallet.Wallet+depositData) ⇒ <code>Object</code> \| <code>String</code>
+    * [.keyCreate(wallet_id, password)](#module_Wallet.Wallet+keyCreate) ⇒ <code>Object</code>
     * [.keyDelete(walletId, keyId, password)](#module_Wallet.Wallet+keyDelete) ⇒ <code>Boolean</code>
-    * [.keyImport(walletId, privateKey, password, keyId)](#module_Wallet.Wallet+keyImport) ⇒ <code>Object</code>
+    * [.keyImport(walletId, privateKey, password)](#module_Wallet.Wallet+keyImport) ⇒ <code>Object</code>
     * [.keyList(id)](#module_Wallet.Wallet+keyList) ⇒ <code>Array</code>
     * [.keyPrivate(walletId, keyId, password)](#module_Wallet.Wallet+keyPrivate) ⇒ <code>String</code>
     * [.keySearch(search, walletId)](#module_Wallet.Wallet+keySearch) ⇒ <code>Object</code>
+    * [.parsePasswordFile(file, wallet, key)](#module_Wallet.Wallet+parsePasswordFile) ⇒ <code>String</code>
     * [.sign(message, walletId, search, password)](#module_Wallet.Wallet+sign) ⇒ <code>Array</code>
     * [.walletBackup(walletId, [destination])](#module_Wallet.Wallet+walletBackup) ⇒ <code>Promise</code>
-    * [.walletRestore(source)](#module_Wallet.Wallet+walletRestore) ⇒ <code>Boolean</code>
     * [.walletCreate([opts])](#module_Wallet.Wallet+walletCreate) ⇒ <code>String</code>
     * [.walletDelete(id)](#module_Wallet.Wallet+walletDelete) ⇒ <code>Boolean</code>
     * [.walletList()](#module_Wallet.Wallet+walletList) ⇒ <code>Array</code>
+    * [.walletMnemonic(walletId, password)](#module_Wallet.Wallet+walletMnemonic) ⇒ <code>String</code>
+    * [.walletRestore(source, [wallet])](#module_Wallet.Wallet+walletRestore) ⇒ <code>Boolean</code>
 
 <a name="module_Wallet.Wallet+init"></a>
 
@@ -138,7 +142,7 @@ This just awaits the initialization of the BLS package.
 **Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
 <a name="module_Wallet.Wallet+depositData"></a>
 
-#### wallet.depositData(walletId, keyId, password, withdrawalOpts) ⇒ <code>Object</code> \| <code>String</code>
+#### wallet.depositData(walletId, keyId, password, withdrawalOpts, [forkVersion]) ⇒ <code>Object</code> \| <code>String</code>
 Gets the deposit data fields for a validator deposit on the ETH1 chain.
 
 **Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
@@ -153,10 +157,11 @@ Gets the deposit data fields for a validator deposit on the ETH1 chain.
 | [withdrawalOpts.withdrawal_key_id] | <code>String</code> | <code>&lt;keyId&gt;</code> | The keyID of the Withdrawal key. |
 | [withdrawalOpts.withdrawal_key_wallet] | <code>String</code> | <code>&lt;walletId&gt;</code> | The wallet ID where the withdrawal key is stored. |
 | [withdrawalOpts.withdrawal_public_key] | <code>String</code> | <code></code> | The public key of the withdrawal key. Overrides withdrawal_key_wallet and withdrawal_key_id. |
+| [forkVersion] | <code>String</code> | <code></code> | Optionally override the Instance fork version. |
 
 <a name="module_Wallet.Wallet+keyCreate"></a>
 
-#### wallet.keyCreate(wallet_id, password, keyId) ⇒ <code>Object</code>
+#### wallet.keyCreate(wallet_id, password) ⇒ <code>Object</code>
 Creates a new ETH2 keypair.
 
 **Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
@@ -168,7 +173,8 @@ Creates a new ETH2 keypair.
 | --- | --- | --- | --- |
 | wallet_id | <code>String</code> |  | The name of the wallet to create an key in. |
 | password | <code>String</code> |  | The password to protect the key. |
-| keyId | <code>String</code> | <code>UUID</code> | The name of the key to create. |
+| [opts.keyId] | <code>String</code> | <code>UUID</code> | The name of the key to create. |
+| [opts.walletPassword] | <code>String</code> | <code></code> | Wallet password for HD wallets. |
 
 <a name="module_Wallet.Wallet+keyDelete"></a>
 
@@ -188,7 +194,7 @@ Removes a key from a wallet.
 
 <a name="module_Wallet.Wallet+keyImport"></a>
 
-#### wallet.keyImport(walletId, privateKey, password, keyId) ⇒ <code>Object</code>
+#### wallet.keyImport(walletId, privateKey, password) ⇒ <code>Object</code>
 Import a private key into the keystore
 
 **Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
@@ -201,7 +207,8 @@ Import a private key into the keystore
 | walletId | <code>String</code> | The wallet to import into. |
 | privateKey | <code>String</code> | A 32byte HEX-format private key |
 | password | <code>String</code> | A password to protect the key. |
-| keyId | <code>String</code> | The ID reference for the key. |
+| [opts.keyId] | <code>String</code> | The ID reference for the key. |
+| [opts.path] | <code>String</code> | Optional derivation path reference. |
 
 <a name="module_Wallet.Wallet+keyList"></a>
 
@@ -265,27 +272,12 @@ Signs a generic message with a private key.
 Creates a wallet backup file
 
 **Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
-**Returns**: <code>Promise</code> - Resolves as undefined on success.  
+**Returns**: <code>Promise</code> - Resolves to save destination path on success.  
 
 | Param | Type | Default | Description |
 | --- | --- | --- | --- |
 | walletId | <code>String</code> |  | The ID of the wallet to backup. |
 | [destination] | <code>String</code> | <code></code> | The destination to write the backup file. |
-
-<a name="module_Wallet.Wallet+walletRestore"></a>
-
-#### wallet.walletRestore(source, [wallet]) ⇒ <code>Boolean</code>
-Restores a wallet from file.
-
-**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
-**Returns**: <code>Boolean</code> - Returns true on success.  
-**Throws**: On Failure.
-
-
-| Param | Type | Description |
-| --- | --- | --- |
-| source | <code>String</code> | The absolute path of the source file. |
-| wallet | <code>String</code> | Optional wallet name to import into. Defaults to filename. |
 
 <a name="module_Wallet.Wallet+walletCreate"></a>
 
@@ -328,6 +320,34 @@ Return a list of available wallet IDs
 **Returns**: <code>Array</code> - A list of wallet IDs.  
 **Throws**: On failure
 
+<a name="module_Wallet.Wallet+walletMnemonic"></a>
+
+#### wallet.walletMnemonic(walletId, password) ⇒ <code>String</code>
+Returns the wallet mnemonic phrase.
+
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
+**Returns**: <code>String</code> - The mnemonic phrase.  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| walletId | <code>String</code> | The wallet ID. |
+| password | <code>String</code> | The password protecting the mnemonic. |
+
+<a name="module_Wallet.Wallet+walletRestore"></a>
+
+#### wallet.walletRestore(source, [wallet]) ⇒ <code>Boolean</code>
+Restores a wallet from file.
+
+**Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
+**Returns**: <code>Boolean</code> - Returns true on success.  
+**Throws**: On failure.
+
+
+| Param | Type | Default | Description |
+| --- | --- | --- | --- |
+| source | <code>String</code> |  | The absolute path of the source file. |
+| [wallet] | <code>String</code> | <code></code> | Optional wallet name to import into. Defaults to filename. |
+
 ### Custom Store
 Standard Javascript Class. See examples in `src/store`.
 
@@ -367,8 +387,9 @@ yarn run cli <command> [...args]
 -   \<parameters\> are required.
 -   \[options\] are optional.
 
-### keyCreate \<wallet\> \<password\> \[key\]
+### keyCreate \<wallet\> \<password\> \[key\] \[walletPassword\]
 Imports a private key into a wallet.
+**HD Wallets require the `--walletPassword` flag.**
 
 ```shell
 $ yarn run cli keyCreate --wallet=primary --password=testpassword --key=testaccountID
@@ -381,6 +402,7 @@ $ yarn run cli keyCreate --wallet=primary --password=testpassword --key=testacco
 
 ### keyDelete \<wallet\> \<key\> \<password\>
 Deletes a key from a wallet.
+**Not available for HD Wallets**
 
 ```shell
 $ yarn run cli keyDelete --wallet=primary --key=testaccountID --password=testpassword
@@ -389,6 +411,7 @@ Key Deleted: testaccountID ---- Wallet: primary
 
 ### keyImport \<wallet\> \<privatekey\> \<password\> \[key\]
 Imports a private key into a wallet.
+**Not available for HD Wallets**
 
 ```shell
 $ yarn run cli keyImport --wallet=primary --privatekey=1e16b2c1947fd9fd4045a88177313db10198ed6abd1b0f165d49cd13a72546e2 --password=testpassword --key=testaccountID
@@ -444,14 +467,20 @@ $ yarn run cli walletBackup --wallet=test
 Wallet "test" successfully backed up.
 ```
 
-### walletCreate \[wallet=UUID\]\[type=1\]
+### walletCreate \[wallet=UUID\]\[type=1\]\[password]
 Creates a new wallet.
 
 Available Types: `1` (Random) or `2` (HD)
+**HD wallets require the `--password` flag**
 
 ```shell
 $ yarn run cli walletCreate --wallet=test
 Created wallet: test
+```
+
+```shell
+$ yarn run cli walletCreate --wallet=HDTest --password=protectMnemonic
+Created wallet: HDTest
 ```
 
 ### walletDelete \<wallet\>
@@ -475,10 +504,11 @@ $ yarn run cli walletList
 
 ### walletMnemonic
 Returns the mnemonic for a wallet.
+**Not available for Simple Wallets**
 
 ```shell
 $ yarn run cli walletMnemonic --wallet=test --password=test
-explain fix pink title village payment sell under critic adapt zone upset
+explain fix pink title village payment sell under critic adapt zone upset explain fix pink title village payment sell under critic adapt zone upset
 ```
 
 ### walletRestore \<source\>
@@ -489,11 +519,11 @@ $ yarn run cli walletRestore --source=/user/home/test.zip
 Wallet "test" successfully restored.
 ```
 
-### depositData \<wallet\> \<password\> \<key\> \[withdrawalwallet=\<wallet\>\] \[withdrawalkey=\<key\>\] \[withdrawalpublickey=null\] \[amount=32000000000\] \[raw=false\]
+### depositData \<wallet\> \<password\> \<key\> \[withdrawalwallet=\<wallet\>\] \[withdrawalkey=\<key\>\] \[withdrawalpublickey=null\] \[amount=32000000000\] \[raw=false\] \[fork=null\]
 Generates deposit data for submitting to the deposit contract.  
 
 ```shell
-$ yarn run cli depositData --wallet=primary --password=testpassword --key=testaccountId --withdrawalpublickey=b6de3f6dd56a863f69bca81af4dc9877d04a81df361bbe555d6944b9d84fce18fdfb939d9ef3c312ead638b759b207c9
+$ yarn run cli depositData --wallet=primary --password=testpassword --key=testaccountId --withdrawalpublickey=b6de3f6dd56a863f69bca81af4dc9877d04a81df361bbe555d6944b9d84fce18fdfb939d9ef3c312ead638b759b207c9 --fork=mainnet
 {
   pubkey: 'b88f5ff7e293d26d24a2655a8c72c8b92d495393548f7b86a31c2fe0923fd1ba292f31c11bb740e8acd7f599fb2ae06d',
   withdrawal_credentials: '00756e0bd4defe8a84f4303f6004e7f1b6978ddbe7fc7d22e2b0bd5f1c895e4c',
@@ -516,7 +546,7 @@ $ yarn run cli depositData --wallet=primary --password=testpassword --key=testac
 ## Roadmap
 -   ~Implement [EIP-2335](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-2335.md)~
 -   ~Add Import/Export function~
--   Add support for BIP-39 HD wallets
+-   ~Add support for BIP-39 HD wallets~
 -   Add support for password files
 
 ## Thanks
