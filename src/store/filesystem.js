@@ -233,7 +233,7 @@ export class Filesystem {
   /**
    * Returns an encrypted mnemonic JSON object.
    * @param  {String}  [path=null] Subpath within the root wallet.
-   * @return {Promise}             [description]
+   * @return {Object|String}              The mnemonic object string
    */
   async mnemonicGet(path=null) {
     let key = await fs.promises.readFile(this.pathGet('mnemonic', path));

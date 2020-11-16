@@ -74,9 +74,9 @@ const cStore = new CustomStore();
 const cKey = new CustomKey();
 
 let opts = {
-  algorithm: 'aes-256-cbc',
+  algorithm: 'aes-256-cbc', // Used to encrypt keys and mnemonic
   wallet_path: '~/.eth2-wallet-js/wallet',
-  fork_version: 'medalla', // or 'mainnet'
+  fork_version: 'pyrmont', // or 'mainnet' or 'medalla'
   store: cStore,
   key: cKey
 }
@@ -353,12 +353,15 @@ Standard Javascript Class. See examples in `src/store`.
 
 #### Specifications
 -   Implements:
-    -   `indexCreate([path=null]) returns Object`
+    -   `indexAccountNext([path=null]) returns Integer`
+    -   `indexCreate([path=null], [keyType=1]) returns Object`
     -   `indexExists([path=null]) returns Boolean`
     -   `keyDelete(<search>, [path=null]) returns Boolean | throws`
     -   `keyList([path=null]) returns Array | throws`
     -   `keySearch(<search>, [path=null]) returns { key_id, public_key, key_object } | throws`
     -   `keyWrite(<keyData>, [opts={ keyId, publicKey, path }]) returns Boolean | throws`
+    -   `mnemonicCreate(<mnemonic>, [path=null]) returns Boolean | throws`
+    -   `mnemonicGet([path=null]) returns Object | String | throws`
     -   `pathBackup(<path>, [destination=null]) returns undefined | throws`
     -   `pathDelete([path=null]) returns Boolean | throws`
     -   `pathList([path=null]) returns Array | throws`
