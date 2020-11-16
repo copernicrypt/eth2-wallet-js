@@ -5,7 +5,7 @@ export const DEPOSIT_DATA = new RegExp("^(0x)?[0-9a-f]{840}$");
 export const SIGNATURE = new RegExp("^(0x)?[0-9a-f]{192}$");
 export const ANY = new RegExp(".*");
 export const DATA_ROOT = new RegExp("^(0x)?[0-9a-f]{64}$");
-export const FORKS = { 'mainnet': Buffer.from('00000000','hex'), 'medalla': Buffer.from('00000001','hex')}
+export const FORKS = { 'mainnet': Buffer.from('00000000','hex'), 'pyrmont': Buffer.from('00002009', 'hex'), 'medalla': Buffer.from('00000001','hex')}
 export const WALLET = { 1: 'Simple', 2: 'HD' };
 
 export const hexNormalize = (hex, prefix=false) => {

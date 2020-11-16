@@ -30,7 +30,7 @@ export class Wallet {
     let defaults = {
       wallet_path: `${HOMEDIR}/.eth2-wallet-js/wallet`,
       algorithm: 'aes-256-cbc',
-      fork_version: 'medalla',
+      fork_version: 'pyrmont',
       key: null,
       store: null
     }
