@@ -43,8 +43,8 @@ describe('CLI', () => {
     let validatorKey = uuidv4();
     let withdrawalKey = uuidv4();
     beforeEach(async() => {
-      await cli(['keyImport', `--password=${testPassword}`, `--wallet=${keyWallet}`, `--key=${validatorKey}`, `--privatekey=${walletMock.key_list[0].private_key}`], '.')
-      await cli(['keyImport', `--password=${testPassword}`, `--wallet=${keyWallet}`, `--key=${withdrawalKey}`, `--privatekey=${walletMock.key_list[1].private_key}`], '.')
+      await cli(['keyImport', `--password=${testPassword}`, `--wallet=${keyWallet}`, `--key=${validatorKey}`, `--privatekey=${walletMock.key_list[5].private_key}`], '.')
+      await cli(['keyImport', `--password=${testPassword}`, `--wallet=${keyWallet}`, `--key=${withdrawalKey}`, `--privatekey=${walletMock.key_list[6].private_key}`], '.')
     })
     it('fails with missing wallet', async () => {
       let result = await cli(['depositData', `--password=${testPassword}`, `--key=${validatorKey}`, `--withdrawalkey=${withdrawalKey}`], '.');
