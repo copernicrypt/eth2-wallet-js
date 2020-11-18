@@ -89,10 +89,12 @@ function intToBytes(value, length, endian='le') {
  */
 
 const pbkdf2 = util__default['default'].promisify(crypto__default['default'].pbkdf2);
+const scrypt = util__default['default'].promisify(crypto__default['default'].scrypt);
 
 const VERSION = 4;
 const SUPPORTED_ALGOS = ['aes-256-cbc', 'aes-256-ctr', 'aes-192-cbc', 'aes-192-ctr', 'aes-128-cbc', 'aes-128-ctr'];
-const INTERATIONS = 262144;
+const COST = 262144;
+const DECRYPTION_KEY_TYPE = ['pbkdf2', 'scrypt'];
 const DECRYPTION_KEY_LENGTH = 32;
 
 class Eip2335 {
@@ -107,13 +109,27 @@ class Eip2335 {
   }
 
   async encrypt(privateKey, password, publicKey, opts={}) {
+    let defaults = {
+      path: "",
+      keyId: uuid.v4(),
+      description: 'eth2-wallet-js key',
+      kdf: 'pbkdf2',
+      dklen: DECRYPTION_KEY_LENGTH,
+      c: COST,
+      n: COST,
+      prf: 'sha256',
+      r: 8,
+      p: 1
+    };
+    opts = {...defaults, ...opts };
+    if(!DECRYPTION_KEY_TYPE.includes(opts.kdf)) throw new Error(`Key type must be one of ${DECRYPTION_KEY_TYPE}`);
+
     // key_id needs to be a valid UUID for use in this spec. If it isn't create a new one.
     if(!UUID.test(opts.keyId)) delete opts.keyId;
-    let defaults = { path: "", keyId: uuid.v4(), description: 'eth2-wallet-js key' };
-    opts = {...defaults, ...opts };
+
     const iv = crypto__default['default'].randomBytes(16);
     const salt = crypto__default['default'].randomBytes(32).toString('hex');
-    const key = await this.getDecryptionKey(password, salt);
+    const key = await this.getDecryptionKey(opts.kdf, password, salt, opts);
     let decryptionKey = Buffer.from(key,'hex');
 
     let cipher = crypto__default['default'].createCipheriv(this.algorithm, decryptionKey.slice(0, this.keyLength), iv);
@@ -122,9 +138,13 @@ class Eip2335 {
     let encryptedHex = encrypted.toString('hex');
     let checksum = this.getChecksum(key, encryptedHex);
 
+    let kdfParams = { dklen: opts.dklen, salt: salt };
+    if(opts.kdf === 'pbkdf2') kdfParams = { ...kdfParams, ...{ c: opts.c, prf: opts.prf } };
+    else kdfParams = { ...kdfParams, ...{ n: opts.n, r: opts.r, p: opts.p } };
+
     return {
       crypto: {
-        kdf: { function: 'pbkdf2', params: { dklen: DECRYPTION_KEY_LENGTH, c: INTERATIONS, prf: 'sha256', salt: salt.toString('hex') }, message: '' },
+        kdf: { function: opts.kdf, params: kdfParams, message: '' },
         checksum: { function: 'sha256', params: {}, message: checksum },
         cipher: { function: this.algorithm, params: { iv: iv.toString('hex') }, message: encryptedHex }
       },
@@ -138,7 +158,7 @@ class Eip2335 {
 
   async decrypt(jsonKey, password) {
     let ivBuf = Buffer.from(jsonKey.crypto.cipher.params.iv, 'hex');
-    let key = await this.getDecryptionKey(password, jsonKey.crypto.kdf.params.salt, jsonKey.crypto.kdf.params.c, jsonKey.crypto.kdf.params.dklen);
+    let key = await this.getDecryptionKey(jsonKey.crypto.kdf.function, password, jsonKey.crypto.kdf.params.salt, jsonKey.crypto.kdf.params);
     let decryptionKey = Buffer.from(key,'hex');
     if(!this.verifyPassword(decryptionKey, jsonKey.crypto.cipher.message, jsonKey.crypto.checksum.message)) throw new Error('Invalid Password');
 
@@ -169,15 +189,28 @@ class Eip2335 {
 
   /**
    * Gets a decryption key from store details
+   * @param  {String}  type     Either 'pbkdf2' or 'scrypt'.
    * @param  {String}  password The UTF8-encoded password.
    * @param  {String}  salt     32-Byte HEX salt
+   * @param  {Integer} [opts.dklen] The Key length.
+   * @param  {Integer} [opts.prf] Digest for pbkdf2
+   * @param  {Integer} [opts.c] Iterations (PBKDF2)
+   * @param  {Integer} [opts.n] CPU/Memory Cost (Scrypt) / Iterations (PBKDF2)
+   * @param  {Integer} [opts.r] Block size for scrypt.
+   * @param  {Integer} [opts.p] Parallelization for scrypt.
    * @return {String}           64-Byte HEX decryption key
    * @throws On failure.
    */
-  async getDecryptionKey(password, salt, iterations=INTERATIONS, keylength=DECRYPTION_KEY_LENGTH) {
+  async getDecryptionKey(type, password, salt, opts={}) {
     try {
+      let defaults = { dklen: DECRYPTION_KEY_LENGTH, c: COST, n: COST, prf: 'sha256', r: 8, p: 1 };
+      opts = { ...defaults, ...opts };
       password = await this.passwordFilter(password);
-      let derivedKey = await pbkdf2(Buffer.from(password, 'utf8'), Buffer.from(salt, 'hex'), iterations, keylength, 'sha256');
+      opts.prf = opts.prf.replace(/hmac-/g, "");
+
+      let derivedKey;
+      if(type === 'pbkdf2') derivedKey = await pbkdf2(Buffer.from(password, 'utf8'), Buffer.from(salt, 'hex'), opts.c, opts.dklen, opts.prf);
+      else derivedKey = await scrypt(Buffer.from(password, 'utf8'), Buffer.from(salt, 'hex'), opts.dklen, { cost: opts.n, r: opts.r, p: opts.p, maxmem: (512 * 1024 * 1024) });
       return derivedKey.toString('hex');
     }
     catch(error) { throw error; }
@@ -975,7 +1008,7 @@ class Wallet {
           pubkey: Buffer.from(validatorPubKey, 'hex'),
           withdrawalCredentials: Buffer.concat([ BLS_WITHDRAWAL_PREFIX, withdrawalPubKeyHash.slice(1) ]),
           amount: opts.amount,
-          signature: Buffer.alloc(96),
+          signature: Buffer.alloc(96)
       };
       // forkVersion Override
       let forkChoice = this.forkVersion;
@@ -999,9 +1032,12 @@ class Wallet {
       else return {
         pubkey: validatorPubKey,
         withdrawal_credentials: depositData.withdrawalCredentials.toString('hex'),
-        signature: Buffer.from(depositData.signature).toString('hex'),
         amount: depositData.amount.toString(),
-        deposit_data_root: depositDataRoot.toString('hex')
+        signature: Buffer.from(depositData.signature).toString('hex'),
+        deposit_message_root: signingRoot.toString('hex'),
+        deposit_data_root: depositDataRoot.toString('hex'),
+        fork_version: forkChoice.toString('hex'),
+        eth2_network_name: ___default['default'].findKey(FORKS, forkChoice)
       }
     }
     catch(error) { throw error; }
