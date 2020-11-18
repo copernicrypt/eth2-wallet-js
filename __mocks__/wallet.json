@@ -47,6 +47,9 @@
     "withdrawal_credentials": "00cded3635ca8b9c51268ade826c9dfcfb02a8912d79f6e1d5583cc0faf4ad91",
     "signature": "982734bd510b59ff648de3663e8b08b115d06f732b60bfce9e0383cdb8582054d0d65b2544bc0b49a0478eee1820df9d026a039457f1db0805d568d5efeacb77c622b23f5ff3ed612df6cad68d6c6bfcb8692ad9435c64e9402bd63db6863de3",
     "amount": "32000000000",
-    "deposit_data_root": "b8d7c8f93143e9c56f186c4e9eb77edbe272ce89d335cbd46be0d4754c6f61d6"
+    "deposit_message_root": "697183a5899b06f383173ed551ba7b6ed77f05a6a12305711ba9ddca384ec14a",
+    "deposit_data_root": "b8d7c8f93143e9c56f186c4e9eb77edbe272ce89d335cbd46be0d4754c6f61d6",
+    "fork_version": "00002009",
+    "eth2_network_name": "pyrmont"
   }
 }

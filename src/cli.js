@@ -140,6 +140,18 @@ program
 });
 
 program
+  .command('validatorCreate')
+  .description('creates a set of validator and withdrawal keys')
+  .option('-n, --number <number>', 'The number of validators to create', 1)
+  .option('-m, --mnemonic <mnemonic>', 'The 24 word mnemonic to derive from.', null)
+  .action(async(cmdObj) => {
+    try {
+      console.log('testing');
+    }
+    catch(error) { console.error(`Error: ${error.message}`); }
+  });
+
+program
   .command('walletBackup')
   .description('creates a wallet backup file')
   .requiredOption('-w, --wallet <wallet>', 'The wallet ID')

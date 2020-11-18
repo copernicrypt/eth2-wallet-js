@@ -86,7 +86,7 @@ export class Wallet {
           pubkey: Buffer.from(validatorPubKey, 'hex'),
           withdrawalCredentials: Buffer.concat([ BLS_WITHDRAWAL_PREFIX, withdrawalPubKeyHash.slice(1) ]),
           amount: opts.amount,
-          signature: Buffer.alloc(96),
+          signature: Buffer.alloc(96)
       };
       // forkVersion Override
       let forkChoice = this.forkVersion;
@@ -110,9 +110,12 @@ export class Wallet {
       else return {
         pubkey: validatorPubKey,
         withdrawal_credentials: depositData.withdrawalCredentials.toString('hex'),
-        signature: Buffer.from(depositData.signature).toString('hex'),
         amount: depositData.amount.toString(),
-        deposit_data_root: depositDataRoot.toString('hex')
+        signature: Buffer.from(depositData.signature).toString('hex'),
+        deposit_message_root: signingRoot.toString('hex'),
+        deposit_data_root: depositDataRoot.toString('hex'),
+        fork_version: forkChoice.toString('hex'),
+        eth2_network_name: _.findKey(types.FORKS, forkChoice)
       }
     }
     catch(error) { throw error; }
