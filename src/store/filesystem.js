@@ -176,6 +176,13 @@ export class Filesystem {
     else throw new Error('Index does not exist.');
   }
 
+  async indexRebuild(path=null) {
+    // Get a list of JSON files
+    // Open each file and get the UUID.
+    // Use the UUID to rename the file.
+    // Use the uuid and pubkey to add new items to the index file's key_list array
+  }
+
   async indexType(path=null) {
     try {
       let indexData = await this.indexGet(path);

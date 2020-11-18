@@ -2,7 +2,7 @@ import fs from 'fs';
 import  { v4 as uuidv4 } from 'uuid';
 import { Filesystem } from './filesystem';
 import * as types from '../types';
-import eip2335Mock from '../../__mocks__/eip2335.json';
+import eip2335Mock from '../../__mocks__/eip2335/pbkdf2-1.json';
 
 const TESTPATH = 'testPath';
 const TESTKEY = { key_id: uuidv4(), public_key: 'a71a0e76c3a91b3e6a12c6e641b095852670dcb6079778ce4921fbc9c9df42b2bbf2c89b2fe0da45fe678872c07eed3b' };
