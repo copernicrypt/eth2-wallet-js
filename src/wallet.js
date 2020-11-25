@@ -378,11 +378,14 @@ export class Wallet {
   /**
    * Restores a wallet from file.
    * @param  {String}  source The absolute path of the source file.
-   * @param  {String}  [wallet=null] Optional wallet name to import into. Defaults to filename.
+   * @param  {String}  [opts.wallet=null] Optional wallet name to import into. Defaults to filename.
+   * @param  {Boolean} [opts.rebuild=false] Whether to rebuild the index. Useful if importing from a different wallet provider like the official CLI.
    * @return {Boolean}        Returns true on success.
    * @throws On Failure.
    */
-  async walletRestore(source, wallet=null) {
-    return this.store.pathRestore(source, wallet);
+  async walletRestore(source, opts={}) {
+    let defaults = { wallet: null, rebuild: false }
+    opts = { ...defaults, ...opts };
+    return this.store.pathRestore(source, opts);
   }
 }

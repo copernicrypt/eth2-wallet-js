@@ -84,8 +84,8 @@ export class Filesystem {
    */
   async keySearch(search, path=null) {
     try {
-      let buffer = await fs.promises.readFile(this.pathGet('index', path));
-      let index = JSON.parse(buffer.toString());
+      let indexBuf = await fs.promises.readFile(this.pathGet('index', path));
+      let index = JSON.parse(indexBuf.toString());
       let searchField = (types.PUBLIC_KEY.test(search)) ? 'public_key' : 'key_id';
       let keyObj = _.find(index.key_list, { [searchField]: search });
       //console.log(`${keyObj} -- Field: ${searchField} -- Search: ${search} -- Wallet: ${walletId}`);
@@ -176,11 +176,42 @@ export class Filesystem {
     else throw new Error('Index does not exist.');
   }
 
-  async indexRebuild(path=null) {
-    // Get a list of JSON files
-    // Open each file and get the UUID.
-    // Use the UUID to rename the file.
-    // Use the uuid and pubkey to add new items to the index file's key_list array
+  /**
+   * Rebuilds the index file of a folder
+   * @param  {String}  [path=null] [description]
+   * @param  {String}  [opts.pattern='default']   The pattern to search for key files (default, eth2_cli)
+   * @return {Boolean} True on success
+   * @throws On failure.
+   */
+  async indexRebuild(path=null, opts={}) {
+    let defaults = { pattern: 'default' }
+    opts = { ...defaults, ...opts };
+    try {
+      // Get a list of JSON files
+      let fileList = await fs.promises.readdir(this.pathGet(path));
+      const keyList = fileList.filter(e => e.match(types.WALLET_FILE[opts.pattern]));
+      if(keyList.length > 0) {
+        // Delete old Index file
+        await fs.promises.unlink(this.pathGet('index', path));
+        // Convert files to JSON
+        let filesParsed = keyList.map(async(file) => {
+          let filePath = this.pathGet(file, path);
+          let fileBuf = await fs.promises.readFile(filePath);
+          let fileJson = JSON.parse(fileBuf.toString('utf8'));
+          if(fileJson.hasOwnProperty('uuid') && fileJson.hasOwnProperty('pubkey')) {
+            // Use the UUID to rename the file.
+            await fs.promises.rename(filePath, this.pathGet(`${fileJson.uuid}.json`, path));
+            // Use the uuid and pubkey to add new items to the index file's key_list array
+            await this.indexUpdate(fileJson.uuid, fileJson.pubkey, false, path);
+            return filePath;
+          }
+          else return null;
+        })
+        return await Promise.all(filesParsed); // pass array of promises
+      }
+      else throw new Error('No valid JSON files found.')
+    }
+    catch(error) { throw error; }
   }
 
   async indexType(path=null) {
@@ -278,12 +309,16 @@ export class Filesystem {
    * @return {Boolean}        Returns true on success.
    * @throws On Error.
    */
-  async pathRestore(source, wallet=null) {
+  async pathRestore(source, opts={}) {
     try {
+        let defaults = { wallet: null, rebuild: false }
+        opts = { ...defaults, ...opts };
         let filename = source.replace(/^.*[\\\/]/, '').split('.')[0];
         await fs.promises.access(source);
-        let dir = ( wallet == null ) ? this.pathGet(filename) : this.pathGet(wallet);
+        let walletName = ( opts.wallet == null ) ? filename : opts.wallet;
+        let dir = this.pathGet(walletName);
         await extract(source, { dir: dir });
+        if(opts.rebuild === true) await this.indexRebuild(walletName);
         //console.log(`Wallet restored: ${filename}`);
         return true;
       }

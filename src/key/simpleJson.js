@@ -23,7 +23,7 @@ export class SimpleJson {
     let cipher = crypto.createCipheriv(this.algorithm, key, iv);
     let encrypted = cipher.update(privateKey);
     encrypted = Buffer.concat([encrypted, cipher.final()]);
-    return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex'), public_key: publicKey, key_id: opts.keyId, path: opts.path };
+    return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex'), pubkey: publicKey, uuid: opts.keyId, path: opts.path };
   }
 
   async decrypt(jsonKey, password) {

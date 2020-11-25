@@ -5,6 +5,11 @@ export const DEPOSIT_DATA = new RegExp("^(0x)?[0-9a-f]{840}$");
 export const SIGNATURE = new RegExp("^(0x)?[0-9a-f]{192}$");
 export const ANY = new RegExp(".*");
 export const DATA_ROOT = new RegExp("^(0x)?[0-9a-f]{64}$");
+export const WALLET_FILE = {
+  eth2_cli: new RegExp('^keystore.*json$'),
+  default: new RegExp('^.*json$')
+}
+export const ETH2_CLI_KEY = new RegExp('^keystore.*json$');
 export const FORKS = { 'mainnet': Buffer.from('00000000','hex'), 'pyrmont': Buffer.from('00002009', 'hex'), 'medalla': Buffer.from('00000001','hex')}
 export const WALLET = { 1: 'Simple', 2: 'HD' };
 
