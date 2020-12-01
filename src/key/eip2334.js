@@ -1,5 +1,4 @@
 import { Eip2333 } from './eip2333';
-import bls from 'bls-eth-wasm';
 const TYPES = { ETH1: 60, ETH2:3600 };
 
 /**

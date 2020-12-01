@@ -13,22 +13,20 @@ const scrypt = util.promisify(crypto.scrypt);
 
 const VERSION = 4;
 const SUPPORTED_ALGOS = ['aes-256-cbc', 'aes-256-ctr', 'aes-192-cbc', 'aes-192-ctr', 'aes-128-cbc', 'aes-128-ctr'];
+const DEFAULT_ALGO = 'aes-256-cbc';
 const COST = 262144;
 const DECRYPTION_KEY_TYPE = ['pbkdf2', 'scrypt'];
 const DECRYPTION_KEY_LENGTH = 32;
 
 export class Eip2335 {
 
-  constructor(algorithm='aes-256-cbc', version=VERSION) {
-    this.algorithm = algorithm;
-    this.version = version;
-    if(!SUPPORTED_ALGOS.includes(algorithm)) throw new Error(`Encryption algorithm not supported. Try ${SUPPORTED_ALGOS.toString()}`);
-    if(algorithm.substr(0, 7) === 'aes-128') this.keyLength = 16;
-    else if(algorithm.substr(0, 7) === 'aes-192') this.keyLength = 24;
-    else if(algorithm.substr(0, 7) === 'aes-256') this.keyLength = 32;
+  static getKeyLength(algo) {
+    if(algo.substr(0, 7) === 'aes-128') return 16;
+    else if(algo.substr(0, 7) === 'aes-192') return 24;
+    else if(algo.substr(0, 7) === 'aes-256') return 32;
   }
 
-  async encrypt(privateKey, password, publicKey, opts={}) {
+  static async encrypt(privateKey, password, publicKey, opts={}) {
     let defaults = {
       path: "",
       keyId: uuidv4(),
@@ -39,7 +37,8 @@ export class Eip2335 {
       n: COST,
       prf: 'sha256',
       r: 8,
-      p: 1
+      p: 1,
+      function: DEFAULT_ALGO
     }
     opts = {...defaults, ...opts };
     if(!DECRYPTION_KEY_TYPE.includes(opts.kdf)) throw new Error(`Key type must be one of ${DECRYPTION_KEY_TYPE}`);
@@ -49,14 +48,14 @@ export class Eip2335 {
 
     const iv = crypto.randomBytes(16);
     const salt = crypto.randomBytes(32).toString('hex');
-    const key = await this.getDecryptionKey(opts.kdf, password, salt, opts);
+    const key = await Eip2335.getDecryptionKey(opts.kdf, password, salt, opts);
     let decryptionKey = Buffer.from(key,'hex');
 
-    let cipher = crypto.createCipheriv(this.algorithm, decryptionKey.slice(0, this.keyLength), iv);
+    let cipher = crypto.createCipheriv(opts.function, decryptionKey.slice(0, Eip2335.getKeyLength(opts.function)), iv);
     let encrypted = cipher.update(Buffer.from(privateKey, 'hex'));
     encrypted = Buffer.concat([encrypted, cipher.final()]);
     let encryptedHex = encrypted.toString('hex');
-    let checksum = this.getChecksum(key, encryptedHex);
+    let checksum = Eip2335.getChecksum(key, encryptedHex);
 
     let kdfParams = { dklen: opts.dklen, salt: salt }
     if(opts.kdf === 'pbkdf2') kdfParams = { ...kdfParams, ...{ c: opts.c, prf: opts.prf } };
@@ -66,38 +65,39 @@ export class Eip2335 {
       crypto: {
         kdf: { function: opts.kdf, params: kdfParams, message: '' },
         checksum: { function: 'sha256', params: {}, message: checksum },
-        cipher: { function: this.algorithm, params: { iv: iv.toString('hex') }, message: encryptedHex }
+        cipher: { function: opts.function, params: { iv: iv.toString('hex') }, message: encryptedHex }
       },
       description: opts.description,
       "pubkey": publicKey,
       "path": opts.path,
       "uuid": opts.keyId,
-      "version": this.version,
+      "version": VERSION,
     }
   }
 
-  async decrypt(jsonKey, password) {
+  static async decrypt(jsonKey, password) {
+    if(!SUPPORTED_ALGOS.includes(jsonKey.crypto.cipher.function)) throw new Error(`Encryption algorithm not supported. Try ${SUPPORTED_ALGOS.toString()}`);
     let ivBuf = Buffer.from(jsonKey.crypto.cipher.params.iv, 'hex');
-    let key = await this.getDecryptionKey(jsonKey.crypto.kdf.function, password, jsonKey.crypto.kdf.params.salt, jsonKey.crypto.kdf.params);
+    let key = await Eip2335.getDecryptionKey(jsonKey.crypto.kdf.function, password, jsonKey.crypto.kdf.params.salt, jsonKey.crypto.kdf.params);
     let decryptionKey = Buffer.from(key,'hex');
-    if(!this.verifyPassword(decryptionKey, jsonKey.crypto.cipher.message, jsonKey.crypto.checksum.message)) throw new Error('Invalid Password');
+    if(!Eip2335.verifyPassword(decryptionKey, jsonKey.crypto.cipher.message, jsonKey.crypto.checksum.message)) throw new Error('Invalid Password');
 
     let encryptedText = Buffer.from(jsonKey.crypto.cipher.message, 'hex');
-    let decipher = crypto.createDecipheriv(this.algorithm, decryptionKey.slice(0, this.keyLength), ivBuf);
+    let decipher = crypto.createDecipheriv(jsonKey.crypto.cipher.function, decryptionKey.slice(0, Eip2335.getKeyLength(jsonKey.crypto.cipher.function)), ivBuf);
     let decrypted = decipher.update(encryptedText);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString('hex');
   }
 
-  verifyPassword(decryptionKey, cipher, checksum) {
+  static verifyPassword(decryptionKey, cipher, checksum) {
     try {
-      let keyChecksum = this.getChecksum(decryptionKey, cipher);
+      let keyChecksum = Eip2335.getChecksum(decryptionKey, cipher);
       return (keyChecksum == checksum);
     }
     catch(error) { throw error; }
   }
 
-  getChecksum(key, cipher) {
+  static getChecksum(key, cipher) {
     try {
       let dkSlice = Buffer.from(key, 'hex').slice(16,32);
       let preImage = Buffer.concat([dkSlice, Buffer.from(cipher, 'hex')]);
@@ -121,11 +121,11 @@ export class Eip2335 {
    * @return {String}           64-Byte HEX decryption key
    * @throws On failure.
    */
-  async getDecryptionKey(type, password, salt, opts={}) {
+  static async getDecryptionKey(type, password, salt, opts={}) {
     try {
       let defaults = { dklen: DECRYPTION_KEY_LENGTH, c: COST, n: COST, prf: 'sha256', r: 8, p: 1 }
       opts = { ...defaults, ...opts }
-      password = await this.passwordFilter(password);
+      password = await Eip2335.passwordFilter(password);
       opts.prf = opts.prf.replace(/hmac-/g, "");
 
       let derivedKey;
@@ -136,7 +136,7 @@ export class Eip2335 {
     catch(error) { throw error; }
   }
 
-  async passwordFilter(password) {
+  static async passwordFilter(password) {
     let filtered = password.replace(/[\x00-\x1F\x7F-\x9F]/g, "");;
     return filtered;
   }

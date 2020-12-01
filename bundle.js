@@ -28,6 +28,10 @@ var extract__default = /*#__PURE__*/_interopDefaultLegacy(extract);
 
 const PUBLIC_KEY = new RegExp("^(0x)?[0-9a-f]{96}$");
 const UUID = new RegExp("^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$", 'i');
+const WALLET_FILE = {
+  eth2_cli: new RegExp('^keystore.*json$'),
+  default: new RegExp('^.*json$')
+};
 const FORKS = { 'mainnet': Buffer.from('00000000','hex'), 'pyrmont': Buffer.from('00002009', 'hex'), 'medalla': Buffer.from('00000001','hex')};
 const WALLET = { 1: 'Simple', 2: 'HD' };
 
@@ -93,22 +97,20 @@ const scrypt = util__default['default'].promisify(crypto__default['default'].scr
 
 const VERSION = 4;
 const SUPPORTED_ALGOS = ['aes-256-cbc', 'aes-256-ctr', 'aes-192-cbc', 'aes-192-ctr', 'aes-128-cbc', 'aes-128-ctr'];
+const DEFAULT_ALGO = 'aes-256-cbc';
 const COST = 262144;
 const DECRYPTION_KEY_TYPE = ['pbkdf2', 'scrypt'];
 const DECRYPTION_KEY_LENGTH = 32;
 
 class Eip2335 {
 
-  constructor(algorithm='aes-256-cbc', version=VERSION) {
-    this.algorithm = algorithm;
-    this.version = version;
-    if(!SUPPORTED_ALGOS.includes(algorithm)) throw new Error(`Encryption algorithm not supported. Try ${SUPPORTED_ALGOS.toString()}`);
-    if(algorithm.substr(0, 7) === 'aes-128') this.keyLength = 16;
-    else if(algorithm.substr(0, 7) === 'aes-192') this.keyLength = 24;
-    else if(algorithm.substr(0, 7) === 'aes-256') this.keyLength = 32;
+  static getKeyLength(algo) {
+    if(algo.substr(0, 7) === 'aes-128') return 16;
+    else if(algo.substr(0, 7) === 'aes-192') return 24;
+    else if(algo.substr(0, 7) === 'aes-256') return 32;
   }
 
-  async encrypt(privateKey, password, publicKey, opts={}) {
+  static async encrypt(privateKey, password, publicKey, opts={}) {
     let defaults = {
       path: "",
       keyId: uuid.v4(),
@@ -119,7 +121,8 @@ class Eip2335 {
       n: COST,
       prf: 'sha256',
       r: 8,
-      p: 1
+      p: 1,
+      function: DEFAULT_ALGO
     };
     opts = {...defaults, ...opts };
     if(!DECRYPTION_KEY_TYPE.includes(opts.kdf)) throw new Error(`Key type must be one of ${DECRYPTION_KEY_TYPE}`);
@@ -129,14 +132,14 @@ class Eip2335 {
 
     const iv = crypto__default['default'].randomBytes(16);
     const salt = crypto__default['default'].randomBytes(32).toString('hex');
-    const key = await this.getDecryptionKey(opts.kdf, password, salt, opts);
+    const key = await Eip2335.getDecryptionKey(opts.kdf, password, salt, opts);
     let decryptionKey = Buffer.from(key,'hex');
 
-    let cipher = crypto__default['default'].createCipheriv(this.algorithm, decryptionKey.slice(0, this.keyLength), iv);
+    let cipher = crypto__default['default'].createCipheriv(opts.function, decryptionKey.slice(0, Eip2335.getKeyLength(opts.function)), iv);
     let encrypted = cipher.update(Buffer.from(privateKey, 'hex'));
     encrypted = Buffer.concat([encrypted, cipher.final()]);
     let encryptedHex = encrypted.toString('hex');
-    let checksum = this.getChecksum(key, encryptedHex);
+    let checksum = Eip2335.getChecksum(key, encryptedHex);
 
     let kdfParams = { dklen: opts.dklen, salt: salt };
     if(opts.kdf === 'pbkdf2') kdfParams = { ...kdfParams, ...{ c: opts.c, prf: opts.prf } };
@@ -146,38 +149,39 @@ class Eip2335 {
       crypto: {
         kdf: { function: opts.kdf, params: kdfParams, message: '' },
         checksum: { function: 'sha256', params: {}, message: checksum },
-        cipher: { function: this.algorithm, params: { iv: iv.toString('hex') }, message: encryptedHex }
+        cipher: { function: opts.function, params: { iv: iv.toString('hex') }, message: encryptedHex }
       },
       description: opts.description,
       "pubkey": publicKey,
       "path": opts.path,
       "uuid": opts.keyId,
-      "version": this.version,
+      "version": VERSION,
     }
   }
 
-  async decrypt(jsonKey, password) {
+  static async decrypt(jsonKey, password) {
+    if(!SUPPORTED_ALGOS.includes(jsonKey.crypto.cipher.function)) throw new Error(`Encryption algorithm not supported. Try ${SUPPORTED_ALGOS.toString()}`);
     let ivBuf = Buffer.from(jsonKey.crypto.cipher.params.iv, 'hex');
-    let key = await this.getDecryptionKey(jsonKey.crypto.kdf.function, password, jsonKey.crypto.kdf.params.salt, jsonKey.crypto.kdf.params);
+    let key = await Eip2335.getDecryptionKey(jsonKey.crypto.kdf.function, password, jsonKey.crypto.kdf.params.salt, jsonKey.crypto.kdf.params);
     let decryptionKey = Buffer.from(key,'hex');
-    if(!this.verifyPassword(decryptionKey, jsonKey.crypto.cipher.message, jsonKey.crypto.checksum.message)) throw new Error('Invalid Password');
+    if(!Eip2335.verifyPassword(decryptionKey, jsonKey.crypto.cipher.message, jsonKey.crypto.checksum.message)) throw new Error('Invalid Password');
 
     let encryptedText = Buffer.from(jsonKey.crypto.cipher.message, 'hex');
-    let decipher = crypto__default['default'].createDecipheriv(this.algorithm, decryptionKey.slice(0, this.keyLength), ivBuf);
+    let decipher = crypto__default['default'].createDecipheriv(jsonKey.crypto.cipher.function, decryptionKey.slice(0, Eip2335.getKeyLength(jsonKey.crypto.cipher.function)), ivBuf);
     let decrypted = decipher.update(encryptedText);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString('hex');
   }
 
-  verifyPassword(decryptionKey, cipher, checksum) {
+  static verifyPassword(decryptionKey, cipher, checksum) {
     try {
-      let keyChecksum = this.getChecksum(decryptionKey, cipher);
+      let keyChecksum = Eip2335.getChecksum(decryptionKey, cipher);
       return (keyChecksum == checksum);
     }
     catch(error) { throw error; }
   }
 
-  getChecksum(key, cipher) {
+  static getChecksum(key, cipher) {
     try {
       let dkSlice = Buffer.from(key, 'hex').slice(16,32);
       let preImage = Buffer.concat([dkSlice, Buffer.from(cipher, 'hex')]);
@@ -201,11 +205,11 @@ class Eip2335 {
    * @return {String}           64-Byte HEX decryption key
    * @throws On failure.
    */
-  async getDecryptionKey(type, password, salt, opts={}) {
+  static async getDecryptionKey(type, password, salt, opts={}) {
     try {
       let defaults = { dklen: DECRYPTION_KEY_LENGTH, c: COST, n: COST, prf: 'sha256', r: 8, p: 1 };
       opts = { ...defaults, ...opts };
-      password = await this.passwordFilter(password);
+      password = await Eip2335.passwordFilter(password);
       opts.prf = opts.prf.replace(/hmac-/g, "");
 
       let derivedKey;
@@ -216,7 +220,7 @@ class Eip2335 {
     catch(error) { throw error; }
   }
 
-  async passwordFilter(password) {
+  static async passwordFilter(password) {
     let filtered = password.replace(/[\x00-\x1F\x7F-\x9F]/g, "");    return filtered;
   }
 }
@@ -243,7 +247,7 @@ class SimpleJson {
     let cipher = crypto__default['default'].createCipheriv(this.algorithm, key, iv);
     let encrypted = cipher.update(privateKey);
     encrypted = Buffer.concat([encrypted, cipher.final()]);
-    return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex'), public_key: publicKey, key_id: opts.keyId, path: opts.path };
+    return { algorithm: this.algorithm, iv: iv.toString('hex'), data: encrypted.toString('hex'), pubkey: publicKey, uuid: opts.keyId, path: opts.path };
   }
 
   async decrypt(jsonKey, password) {
@@ -299,7 +303,7 @@ class Mnemonic {
  * Returns a Key Object
  * @type {Function}
  * @param {String} algorithm The encryption algorithm used to protect the key.
- * @param {String} type The type of key [simple, eip2335].
+ * @param {String} type The type of key [simple, mnemonic, eip2335].
  */
 function getKey(algorithm, type) {
   switch(type) {
@@ -308,7 +312,7 @@ function getKey(algorithm, type) {
     case 'mnemonic':
       return new Mnemonic(algorithm);
     default:
-      return new Eip2335(algorithm);
+      return Eip2335;
   }
 }
 
@@ -547,8 +551,8 @@ class Filesystem {
    */
   async keySearch(search, path=null) {
     try {
-      let buffer = await fs__default['default'].promises.readFile(this.pathGet('index', path));
-      let index = JSON.parse(buffer.toString());
+      let indexBuf = await fs__default['default'].promises.readFile(this.pathGet('index', path));
+      let index = JSON.parse(indexBuf.toString());
       let searchField = (PUBLIC_KEY.test(search)) ? 'public_key' : 'key_id';
       let keyObj = ___default['default'].find(index.key_list, { [searchField]: search });
       //console.log(`${keyObj} -- Field: ${searchField} -- Search: ${search} -- Wallet: ${walletId}`);
@@ -639,11 +643,42 @@ class Filesystem {
     else throw new Error('Index does not exist.');
   }
 
-  async indexRebuild(path=null) {
-    // Get a list of JSON files
-    // Open each file and get the UUID.
-    // Use the UUID to rename the file.
-    // Use the uuid and pubkey to add new items to the index file's key_list array
+  /**
+   * Rebuilds the index file of a folder
+   * @param  {String}  [path=null] [description]
+   * @param  {String}  [opts.pattern='default']   The pattern to search for key files (default, eth2_cli)
+   * @return {Boolean} True on success
+   * @throws On failure.
+   */
+  async indexRebuild(path=null, opts={}) {
+    let defaults = { pattern: 'default' };
+    opts = { ...defaults, ...opts };
+    try {
+      // Get a list of JSON files
+      let fileList = await fs__default['default'].promises.readdir(this.pathGet(path));
+      const keyList = fileList.filter(e => e.match(WALLET_FILE[opts.pattern]));
+      if(keyList.length > 0) {
+        // Delete old Index file
+        await fs__default['default'].promises.unlink(this.pathGet('index', path));
+        // Convert files to JSON
+        let filesParsed = keyList.map(async(file) => {
+          let filePath = this.pathGet(file, path);
+          let fileBuf = await fs__default['default'].promises.readFile(filePath);
+          let fileJson = JSON.parse(fileBuf.toString('utf8'));
+          if(fileJson.hasOwnProperty('uuid') && fileJson.hasOwnProperty('pubkey')) {
+            // Use the UUID to rename the file.
+            await fs__default['default'].promises.rename(filePath, this.pathGet(`${fileJson.uuid}.json`, path));
+            // Use the uuid and pubkey to add new items to the index file's key_list array
+            await this.indexUpdate(fileJson.uuid, fileJson.pubkey, false, path);
+            return filePath;
+          }
+          else return null;
+        });
+        return await Promise.all(filesParsed); // pass array of promises
+      }
+      else throw new Error('No valid JSON files found.')
+    }
+    catch(error) { throw error; }
   }
 
   async indexType(path=null) {
@@ -741,12 +776,16 @@ class Filesystem {
    * @return {Boolean}        Returns true on success.
    * @throws On Error.
    */
-  async pathRestore(source, wallet=null) {
+  async pathRestore(source, opts={}) {
     try {
+        let defaults = { wallet: null, rebuild: false };
+        opts = { ...defaults, ...opts };
         let filename = source.replace(/^.*[\\\/]/, '').split('.')[0];
         await fs__default['default'].promises.access(source);
-        let dir = ( wallet == null ) ? this.pathGet(filename) : this.pathGet(wallet);
+        let walletName = ( opts.wallet == null ) ? filename : opts.wallet;
+        let dir = this.pathGet(walletName);
         await extract__default['default'](source, { dir: dir });
+        if(opts.rebuild === true) await this.indexRebuild(walletName);
         //console.log(`Wallet restored: ${filename}`);
         return true;
       }
@@ -1307,12 +1346,15 @@ class Wallet {
   /**
    * Restores a wallet from file.
    * @param  {String}  source The absolute path of the source file.
-   * @param  {String}  [wallet=null] Optional wallet name to import into. Defaults to filename.
+   * @param  {String}  [opts.wallet=null] Optional wallet name to import into. Defaults to filename.
+   * @param  {Boolean} [opts.rebuild=false] Whether to rebuild the index. Useful if importing from a different wallet provider like the official CLI.
    * @return {Boolean}        Returns true on success.
    * @throws On Failure.
    */
-  async walletRestore(source, wallet=null) {
-    return this.store.pathRestore(source, wallet);
+  async walletRestore(source, opts={}) {
+    let defaults = { wallet: null, rebuild: false };
+    opts = { ...defaults, ...opts };
+    return this.store.pathRestore(source, opts);
   }
 }
 

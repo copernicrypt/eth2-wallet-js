@@ -20,8 +20,8 @@ describe('EIP2335 Keys', () => {
   let scryptStore;
   let mockList;
   beforeAll(async () => {
-    pbkdfStore = new Eip2335(pbkdfMock.crypto.cipher.function);
-    scryptStore = new Eip2335(scryptMock.crypto.cipher.function);
+    pbkdfStore = Eip2335;
+    scryptStore = Eip2335;
     mockList = [ { store: pbkdfStore, mock: pbkdfMock }, { store: scryptStore, mock: scryptMock }];
   });
 

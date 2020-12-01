@@ -5,7 +5,7 @@ import { Mnemonic } from './mnemonic';
  * Returns a Key Object
  * @type {Function}
  * @param {String} algorithm The encryption algorithm used to protect the key.
- * @param {String} type The type of key [simple, eip2335].
+ * @param {String} type The type of key [simple, mnemonic, eip2335].
  */
 export function getKey(algorithm, type) {
   switch(type) {
@@ -14,6 +14,6 @@ export function getKey(algorithm, type) {
     case 'mnemonic':
       return new Mnemonic(algorithm);
     default:
-      return new Eip2335(algorithm);
+      return Eip2335;
   }
 }
