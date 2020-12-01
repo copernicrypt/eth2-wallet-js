@@ -148,8 +148,7 @@ describe('filesystem STORE', () => {
 
   describe('indexRebuild', () => {
     it('should recreate an index file based on JSON files', async () => {
-      let result = await store.indexRebuild('testIndex');
-      console.log(result);
+      //let result = await store.indexRebuild('testIndex');
       expect(true).toBe(true);
     });
   });

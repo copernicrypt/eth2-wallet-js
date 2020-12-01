@@ -1,7 +1,5 @@
 'use strict';
 
-Object.defineProperty(exports, '__esModule', { value: true });
-
 var _ = require('lodash');
 var crypto = require('crypto');
 var bls = require('bls-eth-wasm');
@@ -471,6 +469,12 @@ function deriveKey(seed, path) {
     throw error;
   }
 }
+
+var Eip2334 = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  pathToIndexList: pathToIndexList,
+  deriveKey: deriveKey
+});
 
 const HOMEDIR = require('os').homedir();
 
@@ -1358,4 +1362,9 @@ class Wallet {
   }
 }
 
-exports.Wallet = Wallet;
+module.exports = {
+  Wallet: Wallet,
+  Eip2333: Eip2333,
+  Eip2334: Eip2334,
+  Eip2335: Eip2335
+};
