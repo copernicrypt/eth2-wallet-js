@@ -335,7 +335,7 @@ Returns the wallet mnemonic phrase.
 
 <a name="module_Wallet.Wallet+walletRestore"></a>
 
-#### wallet.walletRestore(source, [wallet]) ⇒ <code>Boolean</code>
+#### wallet.walletRestore(source, [opts]) ⇒ <code>Object</code>
 Restores a wallet from file.
 
 **Kind**: instance method of [<code>Wallet</code>](#module_Wallet.Wallet)  
@@ -347,6 +347,9 @@ Restores a wallet from file.
 | --- | --- | --- | --- |
 | source | <code>String</code> |  | The absolute path of the source file. |
 | [wallet] | <code>String</code> | <code></code> | Optional wallet name to import into. Defaults to filename. |
+| [opts] | <code>Object</code> | <code>{}</code> | Optional parameters. |
+| [opts.wallet] | <code>String</code> | <code>null</code> | Optional wallet name to import into. Defaults to filename. |
+| [opts.rebuild] | <code>Boolean</code> | <code>false</code> | Whether to rebuild the index. Useful if importing from a different wallet provider like the official CLI. |
 
 ### Custom Store
 Standard Javascript Class. See examples in `src/store`.
@@ -365,7 +368,7 @@ Standard Javascript Class. See examples in `src/store`.
     -   `pathBackup(<path>, [destination=null]) returns undefined | throws`
     -   `pathDelete([path=null]) returns Boolean | throws`
     -   `pathList([path=null]) returns Array | throws`
-    -   `pathRestore(<source>, [wallet]) returns Boolean | throws`
+    -   `pathRestore(<source>, [opts]) returns Boolean | throws`
 
 ### Custom Key
 Standard Javascript Class. See examples in `src/key`.
@@ -514,8 +517,8 @@ $ yarn run cli walletMnemonic --wallet=test --password=test
 explain fix pink title village payment sell under critic adapt zone upset explain fix pink title village payment sell under critic adapt zone upset
 ```
 
-### walletRestore \<source\>
-Restores a wallet from file.
+### walletRestore \<source\> \[wallet=null\] \[rebuild=false\]
+Restores a wallet from file. If you want to import from the official Launchpad CLI, simply place all of the keys in the top-level path of a zip file and import with the `--rebuild=true` option.
 
 ```shell
 $ yarn run cli walletRestore --source=/user/home/test.zip

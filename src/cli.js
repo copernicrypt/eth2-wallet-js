@@ -230,10 +230,11 @@ program
   .description('restores a wallet from file.')
   .requiredOption('-s, --source <source>', 'The absolute path to the backup file.')
   .option('-w, --wallet <wallet>', 'Optional wallet name to import into. Defaults to filename.', null)
+  .option('-r, --rebuild <rebuild>', 'Whether to rebuild the index when restoring. Useful when importing from CLI.', false)
   .action(async(cmdObj) => {
     try {
       await WALLET.init();
-      await WALLET.walletRestore(cmdObj.source, cmdObj.wallet);
+      await WALLET.walletRestore(cmdObj.source, { wallet: cmdObj.wallet, rebuild: cmdObj.rebuild });
       console.log(`Wallet "${cmdObj.wallet}" successfully restored.`);
     }
     catch(error) { console.error(`Error: ${error.message}`); }
