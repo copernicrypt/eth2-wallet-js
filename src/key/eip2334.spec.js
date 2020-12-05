@@ -4,6 +4,7 @@ import * as TYPES from '../types';
 const bip39 = require('bip39');
 
 describe('EIP-2334 Deterministic Account Hierachy', () => {
+  jest.setTimeout(10000);
   describe('pathToIndexList', () => {
     it('returns an array of integers', async () => {
       expect(pathToIndexList('m/12381/3600/3/5')).toEqual(expect.arrayContaining([12381,3600,3,5]));

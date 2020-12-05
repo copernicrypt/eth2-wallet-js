@@ -34,6 +34,7 @@ const CASE3 = {
 
 
 describe('EIP2333 Key Generation', () => {
+  jest.setTimeout(10000);
   describe('deriveMasterSk', () => {
     it('produces the correct master key for case 0', async () => {
       let result = Eip2333.deriveMasterSk(CASE0.seed);

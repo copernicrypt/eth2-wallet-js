@@ -16,6 +16,7 @@ const TEST_SECRET_HEX = '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b
 expect.extend(matchers);
 
 describe('EIP2335 Keys', () => {
+  jest.setTimeout(10000);
   let pbkdfStore;
   let scryptStore;
   let mockList;

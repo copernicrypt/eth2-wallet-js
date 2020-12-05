@@ -18,6 +18,7 @@ const TEST_MNEMONIC = 'explain fix pink title village payment sell under critic 
 let walletDeleteList = [];
 
 describe('Wallet', () => {
+  jest.setTimeout(10000);
   let keystore;
   beforeAll(async () => { keystore = new Wallet(); await keystore.init(); });
   //afterAll(() =>  );

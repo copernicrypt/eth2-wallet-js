@@ -21,6 +21,7 @@ const TEST_MNEMONIC_PHRASE = 'panther index connect repair pass clip easily meat
 const TEST_MNEMONIC_JSON = {"algorithm":"aes-256-cbc","iv":"2bba9ea8dc55098afcbd9406754cd982","data":"dc4c509a76d57591a4c4dfbd48ac2b25dab38b9c74f7545f849b74b3831fba078e8c8d289570671772e71614e4b39b9a7c83880c01766aea1c71720a8e997e40d922f82cbbe57f02be7bdb092e7f1885"}
 
 describe('filesystem STORE', () => {
+  jest.setTimeout(10000);
   let store;
   beforeAll(async() => { store = new Filesystem(); });
 
